@@ -29,9 +29,8 @@ def fetch_verses_data(chapter_num):
     except: return []
 
 def calculate_font_size(text):
-    # Har ökat storlekarna här rejält
     l = len(text)
-    if l < 40: return "8vw"   # Mycket stor för korta verser
+    if l < 40: return "8vw"
     elif l < 80: return "7vw"
     elif l < 150: return "5.5vw"
     elif l < 300: return "4.5vw"
@@ -56,9 +55,9 @@ st.markdown("""
     
     header, footer, [data-testid="stSidebar"] { display: none !important; }
 
-    /* 2. HEADER */
+    /* 2. HEADER (Uppdaterad höjd) */
     .top-bar {
-        flex: 0 0 60px;
+        flex: 0 0 50px; /* <-- Minskad höjd här (var 60px) */
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -68,10 +67,7 @@ st.markdown("""
         z-index: 10;
     }
 
-    /* 3. KNAPP-STYLING (EXTREM VERSION) */
-    /* Vi riktar in oss på .stButton > button inuti kolumnerna */
-    
-    /* Grundläge för vänster/höger pil */
+    /* 3. KNAPP-STYLING */
     div[data-testid="column"]:nth-of-type(1) .stButton > button, 
     div[data-testid="column"]:nth-of-type(3) .stButton > button {
         background-color: transparent !important;
@@ -84,8 +80,6 @@ st.markdown("""
         outline: none !important;
     }
 
-    /* Det kritiska: FOCUS och ACTIVE states */
-    /* Detta tar bort den grå rutan vid klick */
     div[data-testid="column"]:nth-of-type(1) .stButton > button:focus, 
     div[data-testid="column"]:nth-of-type(3) .stButton > button:focus,
     div[data-testid="column"]:nth-of-type(1) .stButton > button:active, 
@@ -94,10 +88,9 @@ st.markdown("""
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
-        color: #e0e0e0 !important; /* Återgå till grå om man inte hovrar */
+        color: #e0e0e0 !important;
     }
 
-    /* Hover states (ska vara gröna) */
     div[data-testid="column"]:nth-of-type(1) .stButton > button:hover, 
     div[data-testid="column"]:nth-of-type(3) .stButton > button:hover,
     div[data-testid="column"]:nth-of-type(1) .stButton > button:focus:hover, 
@@ -114,7 +107,7 @@ st.markdown("""
         text-align: center;
         color: #000;
         width: 100%;
-        padding: 0 20px; /* Lite luft på sidorna för lång text */
+        padding: 0 20px;
     }
 
     .meta-tag {
@@ -167,21 +160,25 @@ if selected_data:
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
     font_size = calculate_font_size(raw_text)
 
-    # 1. HEADER
+    # 1. HEADER CONTAINER
     header_container = st.container()
     with header_container:
+        # vertical_alignment="center" sköter centreringen nu när padding är borta
         hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
+        
         with hc1:
-            st.markdown(f'<div style="text-align:center; padding-top:15px;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
+            # Tog bort padding-top:15px här för att passa den lägre listen
+            st.markdown(f'<div style="text-align:center;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
         with hc2:
             if st.button(f"{surah_en} | {surah_ar}", key="title_btn", use_container_width=True):
                 open_settings()
         with hc3:
-            st.markdown(f'<div style="text-align:center; padding-top:15px;"><span class="meta-tag">#{verse_num}</span></div>', unsafe_allow_html=True)
+            # Tog bort padding-top:15px här också
+            st.markdown(f'<div style="text-align:center;"><span class="meta-tag">#{verse_num}</span></div>', unsafe_allow_html=True)
         
-        # Progress bar
+        # Progress bar - tog bort margin-top för att den ska ligga tajt
         st.markdown(f"""
-        <div style="width:100%; height:4px; background:#f0f0f0; margin-top: 10px;">
+        <div style="width:100%; height:4px; background:#f0f0f0; margin-top: 0px;">
             <div style="width:{progress_pct}%; height:100%; background:#2E8B57; transition:width 0.3s;"></div>
         </div>
         """, unsafe_allow_html=True)
@@ -190,7 +187,6 @@ if selected_data:
     c_left, c_center, c_right = st.columns([1, 8, 1])
     
     with c_left:
-        # VÄNSTER PIL
         st.write("")
         st.write("")
         if st.button("❮", key="prev"):
@@ -199,7 +195,6 @@ if selected_data:
                 st.rerun()
 
     with c_center:
-        # TEXTEN
         st.markdown(f"""
         <div style="
             height: 80vh; 
@@ -214,7 +209,6 @@ if selected_data:
         """, unsafe_allow_html=True)
 
     with c_right:
-        # HÖGER PIL
         st.write("")
         st.write("")
         if st.button("❯", key="next"):
