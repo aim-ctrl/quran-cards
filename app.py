@@ -12,27 +12,43 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
     
-    /* --- HÄR ÄR ÄNDRINGEN FÖR HEADERN --- */
-    /* Gör headerns bakgrund genomskinlig men behåll knappar synliga */
+    /* --- CSS FÖR NAVIGATIONEN (HEADER) --- */
+    
+    /* 1. Gör själva balken genomskinlig */
     header[data-testid="stHeader"] {
-        background-color: rgba(0,0,0,0);
+        background-color: transparent;
     }
     
-    /* Alternativ: Om du vill att innehållet ska flytta upp lite högre kan du minska paddingen här */
+    /* 2. Dölj den färgade linjen (dekorationen) högst upp */
+    div[data-testid="stDecoration"] {
+        visibility: hidden;
+        height: 0px;
+    }
+
+    /* 3. Dölj allt i högra hörnet (tre prickar, deploy, running-man) */
+    div[data-testid="stToolbar"] {
+        visibility: hidden;
+        height: 0px;
+    }
+
+    /* 4. Dölj "Settings"-knappen specifikt om den fortfarande syns via MainMenu */
+    #MainMenu { 
+        visibility: hidden; 
+    }
+
+    /* 5. Justera padding så innehållet hamnar högre upp nu när headern är "borta" */
     .block-container {
-        padding-top: 2rem !important; /* Lite mindre padding i toppen */
+        padding-top: 3rem !important; 
         padding-bottom: 1rem !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
         max-width: 100%;
     }
-
-    /* Dölj de tre prickarna (inställningar) till höger om du vill, men behåll sidomeny-knappen */
-    #MainMenu { visibility: hidden; }
     
     footer { visibility: hidden; }
     
-    /* --- RESTEN AV DIN CSS --- */
+    /* --- RESTEN AV KORT-DESIGNEN --- */
+    
     .quran-card {
         background-color: #ffffff;
         border-radius: 16px;
@@ -100,7 +116,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Här fortsätter resten av din Python-kod (cache-funktioner etc) oförändrat ---
+# --- Python-kod (oförändrad funktionalitet) ---
+
 @st.cache_data(show_spinner=False)
 def get_chapter_info(chapter_id):
     try:
