@@ -46,7 +46,7 @@ st.markdown("""
         justify-content: space-between;
         align-items: center;
         flex-shrink: 0;
-        height: 45px;
+        height: 25px;
     }
 
     .header-center { display: flex; gap: 15px; align-items: baseline; }
