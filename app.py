@@ -31,14 +31,13 @@ def fetch_verses_data(chapter_num):
     except: return []
 
 def get_clean_length(text):
-    """Räknar endast bas-tecken för att beräkna visuell bredd korrekt."""
+    """Räknar endast bas-tecken (ignorerar diakritika) för korrekt visuell skalning."""
     return len([c for c in text if unicodedata.category(c) != 'Mn'])
 
 def calculate_text_settings(text):
-    """Dynamisk fontstorlek och ökad radhöjd."""
+    """Beräknar fontstorlek och radhöjd baserat på rensad textlängd."""
     clean_len = get_clean_length(text)
     
-    # Justerade värden för mer luft mellan rader
     if clean_len < 40:
         return "8.5vw", "1.6"
     elif clean_len < 80:
@@ -55,12 +54,13 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
     
+    /* Global layout-optimering */
     .stApp { background-color: #ffffff; }
     .block-container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
     header, footer, [data-testid="stSidebar"] { display: none !important; }
     div[data-testid="stVerticalBlock"] { gap: 0rem !important; }
 
-    /* Knapp-styling för titel */
+    /* Knapp-styling för titeln (inställningar) */
     .stButton > button {
         min-height: 0px !important;
         height: auto !important;
@@ -72,14 +72,14 @@ st.markdown("""
         font-weight: 700 !important;
     }
 
-    /* Sidopilar - Flyttade ner lite grann med margin-top */
+    /* Sidopilar - Flyttade ner något för bättre ergonomi */
     div[data-testid="column"]:nth-of-type(1) .stButton > button, 
     div[data-testid="column"]:nth-of-type(3) .stButton > button {
         font-size: 3rem !important;
         color: #e0e0e0 !important;
         height: 80vh !important;
         width: 100% !important;
-        margin-top: 20px !important; 
+        margin-top: 30px !important; 
     }
 
     .arabic-text {
@@ -88,7 +88,7 @@ st.markdown("""
         text-align: center;
         color: #000;
         width: 100%;
-        padding: 0 10px; /* Minimerad padding på sidorna */
+        padding: 0 5px; /* Minimal padding för maximal textbredd */
     }
 
     .meta-tag {
@@ -110,11 +110,10 @@ def open_settings():
     
     _, _, total_verses = get_chapter_info(new_chapter)
 
-    # Om vi byter kapitel i slidern, sätt default-intervall till 1 -> max
+    # Om kapitel ändras i slidern, uppdatera intervallet automatiskt
     if new_chapter != st.session_state.chapter:
         default_range = (1, total_verses)
     else:
-        # Annars behåll nuvarande val, men se till att det inte kraschar om max ändras
         default_range = (st.session_state.start_v, min(st.session_state.end_v, total_verses))
 
     st.markdown("### Välj Versintervall")
@@ -135,7 +134,6 @@ def open_settings():
 verses_data = fetch_verses_data(st.session_state.chapter)
 surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
 
-# Filtrera ut de valda verserna baserat på session_state
 selected_data = verses_data[st.session_state.start_v - 1 : st.session_state.end_v]
 
 if selected_data:
@@ -150,17 +148,24 @@ if selected_data:
     font_size, line_height = calculate_text_settings(raw_text)
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
 
-    # Header
+    # 1. PROGRESS BAR LÄNGST UPP
+    st.markdown(f"""
+        <div style="width:100%; height:4px; background:#f0f0f0;">
+            <div style="width:{progress_pct}%; height:100%; background:#2E8B57; transition: width 0.3s ease;"></div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # 2. HEADER (Juz, Titel, Nummer)
     hc1, hc2, hc3 = st.columns([1, 6, 1], vertical_alignment="center")
-    with hc1: st.markdown(f'<div style="text-align:center;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
+    with hc1: 
+        st.markdown(f'<div style="text-align:center;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
     with hc2: 
         if st.button(f"{surah_en} | {surah_ar}", use_container_width=True):
             open_settings()
-    with hc3: st.markdown(f'<div style="text-align:center;"><span class="meta-tag">#{verse_num}</span></div>', unsafe_allow_html=True)
-    
-    st.markdown(f'<div style="width:100%; height:3px; background:#f0f0f0;"><div style="width:{progress_pct}%; height:100%; background:#2E8B57;"></div></div>', unsafe_allow_html=True)
+    with hc3: 
+        st.markdown(f'<div style="text-align:center;"><span class="meta-tag">#{verse_num}</span></div>', unsafe_allow_html=True)
 
-    # Main Card
+    # 3. MAIN INTERFACE
     c_left, c_center, c_right = st.columns([1, 8, 1])
     
     with c_left:
@@ -170,7 +175,7 @@ if selected_data:
 
     with c_center:
         st.markdown(f"""
-        <div style="height: 82vh; display: flex; align-items: center; justify-content: center; overflow-y: auto;">
+        <div style="height: 80vh; display: flex; align-items: center; justify-content: center; overflow-y: auto;">
             <div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
                 {raw_text}
             </div>
@@ -182,6 +187,5 @@ if selected_data:
             st.session_state.card_index += 1
             st.rerun()
 else:
-    # Fallback om ingen data laddats
-    if st.button("Öppna inställningar för att välja verser", use_container_width=True):
+    if st.button("Öppna inställningar", use_container_width=True):
         open_settings()
