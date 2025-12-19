@@ -29,12 +29,13 @@ def fetch_verses_data(chapter_num):
     except: return []
 
 def calculate_font_size(text):
+    # Har ökat storlekarna här rejält
     l = len(text)
-    if l < 50: return "5vw"
-    elif l < 100: return "4vw"
-    elif l < 200: return "3.5vw"
-    elif l < 400: return "2.5vw"
-    else: return "2vw"
+    if l < 40: return "8vw"   # Mycket stor för korta verser
+    elif l < 80: return "7vw"
+    elif l < 150: return "5.5vw"
+    elif l < 300: return "4.5vw"
+    else: return "3.5vw"
 
 # --- 3. CSS "FULLSCREEN / FILL" ---
 st.markdown("""
@@ -42,9 +43,7 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
     
     /* 1. NOLLSTÄLLNING AV STREAMLIT LAYOUT */
-    .stApp {
-        background-color: #ffffff;
-    }
+    .stApp { background-color: #ffffff; }
     
     .block-container {
         padding-top: 0rem !important;
@@ -69,52 +68,53 @@ st.markdown("""
         z-index: 10;
     }
 
-    /* 3. KNAPP-STYLING (FIX FÖR GRÅ BAKGRUND) */
+    /* 3. KNAPP-STYLING (EXTREM VERSION) */
+    /* Vi riktar in oss på .stButton > button inuti kolumnerna */
     
-    /* Grundinställning för knapparna (Vänster & Höger kolumn) */
-    div[data-testid="column"]:nth-of-type(1) button, 
-    div[data-testid="column"]:nth-of-type(3) button {
-        background-color: transparent !important; /* Alltid transparent */
+    /* Grundläge för vänster/höger pil */
+    div[data-testid="column"]:nth-of-type(1) .stButton > button, 
+    div[data-testid="column"]:nth-of-type(3) .stButton > button {
+        background-color: transparent !important;
         border: none !important;
         font-size: 3rem !important;
-        color: #e0e0e0 !important; /* Ljusgrå pil */
+        color: #e0e0e0 !important;
         height: 80vh !important; 
         width: 100% !important;
-        box-shadow: none !important; 
+        box-shadow: none !important;
         outline: none !important;
-        transition: color 0.2s ease; /* Mjuk övergång för färg */
     }
 
-    /* FIX: Fokus-läget (När man har klickat) */
-    /* Vi tvingar bakgrunden att förbli transparent och färgen att återgå till grå */
-    div[data-testid="column"]:nth-of-type(1) button:focus, 
-    div[data-testid="column"]:nth-of-type(3) button:focus,
-    div[data-testid="column"]:nth-of-type(1) button:active, 
-    div[data-testid="column"]:nth-of-type(3) button:active {
+    /* Det kritiska: FOCUS och ACTIVE states */
+    /* Detta tar bort den grå rutan vid klick */
+    div[data-testid="column"]:nth-of-type(1) .stButton > button:focus, 
+    div[data-testid="column"]:nth-of-type(3) .stButton > button:focus,
+    div[data-testid="column"]:nth-of-type(1) .stButton > button:active, 
+    div[data-testid="column"]:nth-of-type(3) .stButton > button:active {
         background-color: transparent !important;
-        color: #e0e0e0 !important; /* Håll den grå om musen flyttas bort */
+        background: transparent !important;
         border: none !important;
         box-shadow: none !important;
+        color: #e0e0e0 !important; /* Återgå till grå om man inte hovrar */
     }
 
-    /* Hover-läget (När musen är över) - Ska vinna över Fokus */
-    /* Vi använder :hover och även :focus:hover för att se till att den är grön om man pekar på den, även efter klick */
-    div[data-testid="column"]:nth-of-type(1) button:hover, 
-    div[data-testid="column"]:nth-of-type(3) button:hover,
-    div[data-testid="column"]:nth-of-type(1) button:focus:hover, 
-    div[data-testid="column"]:nth-of-type(3) button:focus:hover {
-        color: #2E8B57 !important; /* Grön pil */
-        background-color: transparent !important; /* Ingen bakgrundsfärg vid hover heller */
+    /* Hover states (ska vara gröna) */
+    div[data-testid="column"]:nth-of-type(1) .stButton > button:hover, 
+    div[data-testid="column"]:nth-of-type(3) .stButton > button:hover,
+    div[data-testid="column"]:nth-of-type(1) .stButton > button:focus:hover, 
+    div[data-testid="column"]:nth-of-type(3) .stButton > button:focus:hover {
+        color: #2E8B57 !important;
+        background-color: transparent !important;
     }
 
     /* 4. TEXT STYLING */
     .arabic-text {
         font-family: 'Scheherazade New', serif;
-        line-height: 2;
+        line-height: 1.8;
         direction: rtl;
         text-align: center;
         color: #000;
         width: 100%;
+        padding: 0 20px; /* Lite luft på sidorna för lång text */
     }
 
     .meta-tag {
@@ -186,7 +186,7 @@ if selected_data:
         </div>
         """, unsafe_allow_html=True)
 
-    # 2. HUVUDINNEHÅLL (Text + Pilar)
+    # 2. HUVUDINNEHÅLL
     c_left, c_center, c_right = st.columns([1, 8, 1])
     
     with c_left:
