@@ -57,7 +57,7 @@ st.markdown("""
 
     /* 2. HEADER (Uppdaterad höjd) */
     .top-bar {
-        flex: 0 0 5px; /* <-- Minskad höjd här (var 60px) */
+        flex: 0 0 0 px; /* <-- Minskad höjd här (var 60px) */
         display: flex;
         align-items: center;
         justify-content: space-between;
