@@ -92,10 +92,10 @@ st.markdown("""
 
     .meta-tag {
         font-family: sans-serif; 
-        font-size: 0.75rem;
+        font-size: 0.55rem;
         color: #888; 
         background: #f0f2f6; 
-        padding: 10px 5px;
+        padding: 3px 3px;
         border-radius: 12px;
     }
     
