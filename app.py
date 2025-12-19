@@ -30,8 +30,7 @@ def fetch_verses_data(chapter_num):
 
 def calculate_font_size(text):
     l = len(text)
-    # Lite större text nu när vi har hela skärmen
-    if l < 50: return "5vw" # Responsiv storlek baserat på skärmbredd (vw)
+    if l < 50: return "5vw"
     elif l < 100: return "4vw"
     elif l < 200: return "3.5vw"
     elif l < 400: return "2.5vw"
@@ -44,10 +43,9 @@ st.markdown("""
     
     /* 1. NOLLSTÄLLNING AV STREAMLIT LAYOUT */
     .stApp {
-        background-color: #ffffff; /* Hela skärmen är vit */
+        background-color: #ffffff;
     }
     
-    /* Ta bort all padding från huvudcontainern */
     .block-container {
         padding-top: 0rem !important;
         padding-bottom: 0rem !important;
@@ -57,71 +55,57 @@ st.markdown("""
         margin: 0 !important;
     }
     
-    /* Dölj menyer */
     header, footer, [data-testid="stSidebar"] { display: none !important; }
 
-    /* 2. LAYOUT STRUKTUR (Grid för hela skärmen) */
-    /* Vi använder CSS Grid för att skapa en layout: Header (top), Content (mid), Footer (bottom) */
-    
-    .fullscreen-wrapper {
-        height: 100vh; /* 100% av skärmhöjden */
-        width: 100vw;  /* 100% av skärmbredden */
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        overflow: hidden; /* Inga scrollbars */
-    }
-
-    /* 3. HEADER (Titel-knappen) */
+    /* 2. HEADER */
     .top-bar {
-        flex: 0 0 60px; /* Fast höjd */
+        flex: 0 0 60px;
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 0 20px;
-        background-color: #f8f9fa; /* Ljus grå boarder top */
+        background-color: #f8f9fa;
         border-bottom: 1px solid #eee;
         z-index: 10;
     }
 
-    /* 4. MAIN CONTENT AREA */
-    .content-area {
-        flex: 1; /* Ta all kvarvarande plats */
-        display: flex;
-        align-items: center; /* Vertikal centrering */
-        justify-content: center; /* Horisontell centrering */
-        padding: 0px 60px; /* Padding så text inte nuddar pilarna */
-        position: relative;
-    }
-
-    /* 5. PILARNA (Flytande knappar) */
-    /* Vi stylar Streamlit-knapparna i kolumn 1 och 3 att vara osynliga overlays på sidorna */
-    div[data-testid="column"]:nth-of-type(1), 
-    div[data-testid="column"]:nth-of-type(3) {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: transparent;
-    }
+    /* 3. KNAPP-STYLING (Viktig uppdatering här) */
+    /* Vi riktar in oss på knapparna i vänster (1) och höger (3) kolumn */
     
-    /* Själva knapparna */
-    button.nav-btn {
+    div[data-testid="column"]:nth-of-type(1) button, 
+    div[data-testid="column"]:nth-of-type(3) button {
         background: transparent !important;
         border: none !important;
         font-size: 3rem !important;
-        color: #e0e0e0 !important;
-        height: 100vh !important; /* Knappen täcker hela höjden för enkel klickning */
+        color: #e0e0e0 !important; /* Ljusgrå som standard */
+        height: 80vh !important; /* Täcker höjden */
         width: 100% !important;
-    }
-    button.nav-btn:hover {
-        color: #2E8B57 !important;
-        background: rgba(0,0,0,0.02) !important;
-    }
-    button.nav-btn:active {
-        color: #2E8B57 !important;
+        box-shadow: none !important; /* Tar bort skugga */
+        outline: none !important; /* Tar bort fokus-ram */
+        transition: color 0.2s ease, background 0.2s ease;
     }
 
-    /* 6. TEXT & STYLING */
+    /* Hover-effekt */
+    div[data-testid="column"]:nth-of-type(1) button:hover, 
+    div[data-testid="column"]:nth-of-type(3) button:hover {
+        color: #2E8B57 !important; /* Grön vid hover */
+        background: rgba(0,0,0,0.02) !important;
+    }
+
+    /* Active & Focus (När man klickar eller har klickat) */
+    /* Här tvingar vi den att INTE bli röd eller ändra stil */
+    div[data-testid="column"]:nth-of-type(1) button:active, 
+    div[data-testid="column"]:nth-of-type(3) button:active,
+    div[data-testid="column"]:nth-of-type(1) button:focus:not(:active), 
+    div[data-testid="column"]:nth-of-type(3) button:focus:not(:active) {
+        color: #2E8B57 !important; /* Behåll grön färg om man klickat */
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    /* 4. TEXT STYLING */
     .arabic-text {
         font-family: 'Scheherazade New', serif;
         line-height: 2;
@@ -129,25 +113,12 @@ st.markdown("""
         text-align: center;
         color: #000;
         width: 100%;
-        /* Font-size sätts dynamiskt via Python */
     }
 
     .meta-tag {
         font-family: sans-serif; font-size: 0.8rem; color: #888; font-weight: 600;
         background: #f1f1f1; padding: 4px 10px; border-radius: 12px;
     }
-
-    /* Titel-knapp styling */
-    .title-btn-style {
-        border: none; background: transparent; 
-        color: #2E8B57; font-weight: 700; font-size: 1.2rem; cursor: pointer;
-    }
-    
-    /* Progress Bar i toppen (under header) */
-    .progress-line {
-        height: 4px; width: 100%; background: #eee; position: absolute; top: 60px; left: 0;
-    }
-    .progress-fill { height: 100%; background: #2E8B57; transition: width 0.3s; }
 
 </style>
 """, unsafe_allow_html=True)
@@ -194,17 +165,9 @@ if selected_data:
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
     font_size = calculate_font_size(raw_text)
 
-    # --- LAYOUT STRATEGI: Lager på lager ---
-    # Eftersom vi vill ha total kontroll på layouten använder vi "fixed" element för headern
-    # och st.columns bara för navigationspilarna.
-    
-    # 1. HEADER (Custom HTML)
-    # Eftersom st.button inte går att lägga i HTML enkelt, använder vi st.columns för headern
-    # Vi lägger en container högst upp
-    
+    # 1. HEADER
     header_container = st.container()
     with header_container:
-        # En rad för Header
         hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
         with hc1:
             st.markdown(f'<div style="text-align:center; padding-top:15px;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
@@ -214,7 +177,7 @@ if selected_data:
         with hc3:
             st.markdown(f'<div style="text-align:center; padding-top:15px;"><span class="meta-tag">#{verse_num}</span></div>', unsafe_allow_html=True)
         
-        # Progress bar precis under header
+        # Progress bar
         st.markdown(f"""
         <div style="width:100%; height:4px; background:#f0f0f0; margin-top: 10px;">
             <div style="width:{progress_pct}%; height:100%; background:#2E8B57; transition:width 0.3s;"></div>
@@ -222,27 +185,19 @@ if selected_data:
         """, unsafe_allow_html=True)
 
     # 2. HUVUDINNEHÅLL (Text + Pilar)
-    # Vi använder resten av höjden
-    
-    # För att texten ska centreras vertikalt (mitt på skärmen) använder vi lite CSS trick i kolumnerna
-    # Vi sätter kolumnerna till att ta upp t.ex. 80vh
-    
     c_left, c_center, c_right = st.columns([1, 8, 1])
     
     with c_left:
-        # VÄNSTER PIL
-        # En osynlig knapp som täcker hela vänstra sidan
+        # VÄNSTER PIL (Help borttagen)
         st.write("")
         st.write("")
-        st.markdown('<style>div[data-testid="column"]:nth-of-type(1) button {height: 80vh; border:none;}</style>', unsafe_allow_html=True)
-        if st.button("❮", key="prev", help="Föregående"):
+        if st.button("❮", key="prev"):
             if st.session_state.card_index > 0:
                 st.session_state.card_index -= 1
                 st.rerun()
 
     with c_center:
         # TEXTEN
-        # Flexbox container för att centrera texten exakt
         st.markdown(f"""
         <div style="
             height: 80vh; 
@@ -257,11 +212,10 @@ if selected_data:
         """, unsafe_allow_html=True)
 
     with c_right:
-        # HÖGER PIL
+        # HÖGER PIL (Help borttagen)
         st.write("")
         st.write("")
-        st.markdown('<style>div[data-testid="column"]:nth-of-type(3) button {height: 80vh; border:none;}</style>', unsafe_allow_html=True)
-        if st.button("❯", key="next", help="Nästa"):
+        if st.button("❯", key="next"):
             if st.session_state.card_index < len(selected_data) - 1:
                 st.session_state.card_index += 1
                 st.rerun()
