@@ -101,8 +101,8 @@ st.markdown("""
     
     /* Container för att styra luft över headern */
     .header-wrapper {
-        padding-top: 12px;
-        padding-bottom: 5px;
+        padding-top: 0px;
+        padding-bottom: 15px;
     }
 </style>
 """, unsafe_allow_html=True)
