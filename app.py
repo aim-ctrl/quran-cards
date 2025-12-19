@@ -69,40 +69,42 @@ st.markdown("""
         z-index: 10;
     }
 
-    /* 3. KNAPP-STYLING (Viktig uppdatering här) */
-    /* Vi riktar in oss på knapparna i vänster (1) och höger (3) kolumn */
+    /* 3. KNAPP-STYLING (FIX FÖR GRÅ BAKGRUND) */
     
+    /* Grundinställning för knapparna (Vänster & Höger kolumn) */
     div[data-testid="column"]:nth-of-type(1) button, 
     div[data-testid="column"]:nth-of-type(3) button {
-        background: transparent !important;
+        background-color: transparent !important; /* Alltid transparent */
         border: none !important;
         font-size: 3rem !important;
-        color: #e0e0e0 !important; /* Ljusgrå som standard */
-        height: 80vh !important; /* Täcker höjden */
+        color: #e0e0e0 !important; /* Ljusgrå pil */
+        height: 80vh !important; 
         width: 100% !important;
-        box-shadow: none !important; /* Tar bort skugga */
-        outline: none !important; /* Tar bort fokus-ram */
-        transition: color 0.2s ease, background 0.2s ease;
+        box-shadow: none !important; 
+        outline: none !important;
+        transition: color 0.2s ease; /* Mjuk övergång för färg */
     }
 
-    /* Hover-effekt */
-    div[data-testid="column"]:nth-of-type(1) button:hover, 
-    div[data-testid="column"]:nth-of-type(3) button:hover {
-        color: #2E8B57 !important; /* Grön vid hover */
-        background: rgba(0,0,0,0.02) !important;
-    }
-
-    /* Active & Focus (När man klickar eller har klickat) */
-    /* Här tvingar vi den att INTE bli röd eller ändra stil */
+    /* FIX: Fokus-läget (När man har klickat) */
+    /* Vi tvingar bakgrunden att förbli transparent och färgen att återgå till grå */
+    div[data-testid="column"]:nth-of-type(1) button:focus, 
+    div[data-testid="column"]:nth-of-type(3) button:focus,
     div[data-testid="column"]:nth-of-type(1) button:active, 
-    div[data-testid="column"]:nth-of-type(3) button:active,
-    div[data-testid="column"]:nth-of-type(1) button:focus:not(:active), 
-    div[data-testid="column"]:nth-of-type(3) button:focus:not(:active) {
-        color: #2E8B57 !important; /* Behåll grön färg om man klickat */
-        background: transparent !important;
+    div[data-testid="column"]:nth-of-type(3) button:active {
+        background-color: transparent !important;
+        color: #e0e0e0 !important; /* Håll den grå om musen flyttas bort */
         border: none !important;
         box-shadow: none !important;
-        outline: none !important;
+    }
+
+    /* Hover-läget (När musen är över) - Ska vinna över Fokus */
+    /* Vi använder :hover och även :focus:hover för att se till att den är grön om man pekar på den, även efter klick */
+    div[data-testid="column"]:nth-of-type(1) button:hover, 
+    div[data-testid="column"]:nth-of-type(3) button:hover,
+    div[data-testid="column"]:nth-of-type(1) button:focus:hover, 
+    div[data-testid="column"]:nth-of-type(3) button:focus:hover {
+        color: #2E8B57 !important; /* Grön pil */
+        background-color: transparent !important; /* Ingen bakgrundsfärg vid hover heller */
     }
 
     /* 4. TEXT STYLING */
@@ -188,7 +190,7 @@ if selected_data:
     c_left, c_center, c_right = st.columns([1, 8, 1])
     
     with c_left:
-        # VÄNSTER PIL (Help borttagen)
+        # VÄNSTER PIL
         st.write("")
         st.write("")
         if st.button("❮", key="prev"):
@@ -212,7 +214,7 @@ if selected_data:
         """, unsafe_allow_html=True)
 
     with c_right:
-        # HÖGER PIL (Help borttagen)
+        # HÖGER PIL
         st.write("")
         st.write("")
         if st.button("❯", key="next"):
