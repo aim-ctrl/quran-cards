@@ -9,10 +9,9 @@ st.set_page_config(
 )
 
 # --- 1. SETUP & STATE ---
-# Initiera variabler i minnet om de inte finns
 if 'chapter' not in st.session_state: st.session_state.chapter = 1
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
-if 'end_v' not in st.session_state: st.session_state.end_v = 7 # Standardvärde
+if 'end_v' not in st.session_state: st.session_state.end_v = 7 
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
 
 # --- 2. HÄMTA DATA ---
@@ -38,220 +37,198 @@ def calculate_font_size(text):
     elif l < 700: return "20px"
     else: return "16px"
 
-# --- 3. CSS DESIGN ---
+# --- 3. CSS DESIGN (Uppdaterad för vitt kort) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
     
-    /* DÖLJ ALLT STANDARD-UI */
+    /* 1. BAKGRUND FÖR HELA APPEN (Ljusgrå för kontrast) */
+    .stApp {
+        background-color: #f0f2f6;
+    }
+
+    /* 2. DÖLJ MENYER */
     header {display: none !important;}
     [data-testid="stSidebar"] {display: none !important;}
     footer {display: none !important;}
-    .stApp { margin-top: -60px; } /* Dra upp innehållet eftersom headern är borta */
+    .stApp { margin-top: -50px; }
 
-    /* STYLING FÖR KORT-CONTAINER */
-    .quran-card-container {
-        background-color: #ffffff;
+    /* 3. STYLA MITT-KOLUMNEN TILL ETT KORT */
+    /* Detta väljer den andra kolumnen (där kortet ligger) */
+    div[data-testid="column"]:nth-of-type(2) > div {
+        background-color: #ffffff !important; /* TVINGA VIT BAKGRUND */
         border-radius: 16px;
         border: 1px solid #e0e0e0;
         box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        padding: 0;
+        padding: 0px !important; /* Ta bort padding så headern når kanten */
         overflow: hidden;
-        margin-top: 20px;
     }
 
-    /* HEADER INUTI KORTET (Streamlit columns) */
-    .card-header-area {
+    /* Header inuti kortet */
+    .internal-header {
         background-color: #f8f9fa;
         border-bottom: 1px solid #eee;
-        padding: 10px 5px;
+        padding: 10px 0px;
+        margin-bottom: 10px;
     }
 
-    /* Gör så att titel-knappen ser ut som text */
+    /* Titel-knappen (Gör den mörkgrön och tydlig) */
     div[data-testid="stButton"] button {
         border: none;
         background: transparent;
-        color: #2E8B57;
+        color: #2E8B57 !important; /* Tvinga färgen */
         font-weight: 700;
-        font-size: 1.2rem;
+        font-size: 1.3rem;
         width: 100%;
+        margin-top: -5px;
     }
     div[data-testid="stButton"] button:hover {
-        color: #1e5c39;
+        color: #1e5c39 !important;
         background: rgba(0,0,0,0.05);
     }
-    div[data-testid="stButton"] button:focus {
-        border: none;
-        color: #2E8B57;
-        outline: none; 
-        box-shadow: none;
-    }
-
-    /* NAVIGATION KNAPPAR (Vänster/Höger pilar) */
-    .nav-btn {
-        font-size: 40px; 
-        background: transparent; 
-        border: none; 
-        color: #ccc; 
-        cursor: pointer;
-        width: 100%;
+    
+    /* Pilarna på sidorna (vänster/höger kolumn) */
+    div[data-testid="column"]:nth-of-type(1) button, 
+    div[data-testid="column"]:nth-of-type(3) button {
+        color: #ccc !important;
+        font-size: 3rem;
         height: 70vh;
     }
-    .nav-btn:hover { color: #2E8B57; background: rgba(0,0,0,0.02); }
+    div[data-testid="column"]:nth-of-type(1) button:hover, 
+    div[data-testid="column"]:nth-of-type(3) button:hover {
+        color: #2E8B57 !important;
+        background-color: transparent;
+    }
 
-    /* ARABISK TEXT */
+    /* Arabisk Text */
     .arabic-text {
         font-family: 'Scheherazade New', serif;
         line-height: 2.2;
         direction: rtl;
         text-align: center;
-        color: #000;
+        color: #000000 !important; /* Tvinga SVART text */
         width: 100%;
-        padding: 20px;
+        padding: 0 20px;
     }
 
-    /* PROGRESS BAR */
-    .progress-track { width: 100%; height: 4px; background-color: #eee; }
-    .progress-fill { height: 100%; background-color: #2E8B57; transition: width 0.3s ease; }
-    
-    /* Justeringar för metataggar */
+    /* Meta taggar (Juz / Vers nr) */
     .meta-text {
         font-family: sans-serif; 
-        font-size: 0.8rem; 
+        font-size: 0.9rem; 
         color: #555;
         font-weight: 600; 
         background-color: #e8f5e9; 
-        padding: 4px 10px; 
+        padding: 5px 12px; 
         border-radius: 8px;
         display: inline-block;
-        text-align: center;
     }
+
+    /* Progress bar */
+    .progress-container { width: 100%; height: 4px; background-color: #eee; margin-top: -10px; margin-bottom: 20px;}
+    .progress-bar { height: 100%; background-color: #2E8B57; transition: width 0.3s ease; }
 
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. POPUP MENY (DIALOG) ---
+# --- 4. POPUP MENY ---
 @st.dialog("Inställningar")
 def open_settings():
-    st.write("Välj vad du vill läsa")
-    
-    # Val av kapitel
+    st.write("Konfigurera läsning")
     new_chapter = st.number_input("Kapitel (1-114)", 1, 114, st.session_state.chapter)
-    
-    # Uppdatera info baserat på valt kapitel (för att veta max antal verser)
     _, _, total_verses = get_chapter_info(new_chapter)
     
     c1, c2 = st.columns(2)
     with c1:
-        # Om vi bytt kapitel, återställ start till 1, annars behåll nuvarande
         default_start = 1 if new_chapter != st.session_state.chapter else st.session_state.start_v
         new_start = st.number_input("Startvers", 1, total_verses, default_start)
     with c2:
         default_end = total_verses if new_chapter != st.session_state.chapter else st.session_state.end_v
-        # Se till att slut inte är mindre än start
         new_end = st.number_input("Slutvers", new_start, total_verses, default_end)
 
-    if st.button("Spara & Ladda", type="primary", use_container_width=True):
+    if st.button("Klar", type="primary", use_container_width=True):
         st.session_state.chapter = new_chapter
         st.session_state.start_v = new_start
         st.session_state.end_v = new_end
-        st.session_state.card_index = 0 # Återställ kort till början
+        st.session_state.card_index = 0
         st.rerun()
 
 # --- 5. LOGIK ---
-# Hämta data baserat på session_state (som satts i popupen)
 verses_data = fetch_verses_data(st.session_state.chapter)
 surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
-
-# Filtrera data
-max_verses_in_selection = len(verses_data)
-# Justera indexering eftersom listor är 0-baserade men verser 1-baserade
 start_idx = st.session_state.start_v - 1
 end_idx = st.session_state.end_v
 selected_data = verses_data[start_idx : end_idx]
 
-# Säkerställ index
 if st.session_state.card_index >= len(selected_data): st.session_state.card_index = 0
 
 # --- 6. RENDER UI ---
-
 if selected_data:
     obj = selected_data[st.session_state.card_index]
     raw_text = obj['text_uthmani']
     juz = obj['juz_number']
-    verse_key = obj['verse_key']
-    verse_num = verse_key.split(':')[1]
+    verse_num = obj['verse_key'].split(':')[1]
     
-    # Framsteg i den valda sektionen
-    current_step = st.session_state.card_index + 1
-    total_steps = len(selected_data)
-    progress_pct = (current_step / total_steps) * 100
-    
+    progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
     font_size = calculate_font_size(raw_text)
 
+    # Layout med 3 kolumner. Mitten-kolumnen stylas via CSS att bli "kortet"
     col_l, col_c, col_r = st.columns([1, 10, 1])
     
-    # VÄNSTER PIL
     with col_l:
-        st.write("") # Spacer
+        st.write("") 
         st.write("")
         st.write("")
-        if st.button("❮", key="prev"):
+        if st.button("❮", key="prev", use_container_width=True):
             if st.session_state.card_index > 0:
                 st.session_state.card_index -= 1
                 st.rerun()
 
-    # KORTET (MITTEN)
     with col_c:
-        # Vi bygger kortet visuellt med en container
+        # --- HEADER PÅ KORTET ---
+        # Vi skapar en "falsk" header med bakgrundsfärg via CSS på containern, 
+        # men vi kan lägga till en container här för struktur.
         with st.container():
-            st.markdown('<div class="quran-card-container">', unsafe_allow_html=True)
+            st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True) # Spacer top
             
-            # --- HEADER DELEN (som nu är interaktiv) ---
-            st.markdown('<div class="card-header-area">', unsafe_allow_html=True)
-            h_col1, h_col2, h_col3 = st.columns([1, 3, 1], gap="small")
+            # Header-rad med Juz, Titel-knapp, Versnummer
+            h1, h2, h3 = st.columns([1, 4, 1], gap="small", vertical_alignment="center")
             
-            with h_col1:
-                st.markdown(f'<div style="text-align:center; margin-top: 5px;"><span class="meta-text">Juz {juz}</span></div>', unsafe_allow_html=True)
+            with h1:
+                st.markdown(f'<div style="text-align:center;"><span class="meta-text">Juz {juz}</span></div>', unsafe_allow_html=True)
             
-            with h_col2:
-                # DETTA ÄR KNAPPEN SOM ÖPPNAR POPUP
-                # Vi visar både engelska och arabiska namnet på knappen
+            with h2:
+                # TITEL-KNAPPEN
                 label = f"{surah_en}  |  {surah_ar}"
                 if st.button(label, use_container_width=True):
                     open_settings()
             
-            with h_col3:
-                st.markdown(f'<div style="text-align:center; margin-top: 5px;"><span class="meta-text"># {verse_num}</span></div>', unsafe_allow_html=True)
+            with h3:
+                st.markdown(f'<div style="text-align:center;"><span class="meta-text"># {verse_num}</span></div>', unsafe_allow_html=True)
             
-            st.markdown('</div>', unsafe_allow_html=True) 
-            # --- SLUT HEADER ---
-
+            st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True) # Spacer bottom
+            
             # Progress Bar
             st.markdown(f"""
-            <div class="progress-track">
-                <div class="progress-fill" style="width: {progress_pct}%;"></div>
+            <div class="progress-container">
+                <div class="progress-bar" style="width: {progress_pct}%;"></div>
             </div>
             """, unsafe_allow_html=True)
 
-            # Innehåll
-            st.markdown(f"""
-            <div style="height: 60vh; display: flex; align-items: center; justify-content: center; overflow-y: auto;">
-                <div class="arabic-text" style="font-size: {font_size};">{raw_text}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        # --- INNEHÅLL ---
+        # Scrollbar container för texten
+        st.markdown(f"""
+        <div style="height: 55vh; display: flex; align-items: center; justify-content: center; overflow-y: auto;">
+            <div class="arabic-text" style="font-size: {font_size};">{raw_text}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-            st.markdown('</div>', unsafe_allow_html=True) # Stänger quran-card-container
-
-    # HÖGER PIL
     with col_r:
         st.write("")
         st.write("")
         st.write("")
-        if st.button("❯", key="next"):
+        if st.button("❯", key="next", use_container_width=True):
             if st.session_state.card_index < len(selected_data) - 1:
                 st.session_state.card_index += 1
                 st.rerun()
-
 else:
-    st.info("Ingen data laddad. Klicka på inställningar.")
+    st.info("Ingen data. Klicka på 'Klar' för att ladda.")
