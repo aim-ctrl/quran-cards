@@ -12,8 +12,12 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
     
+    /* Dölj hamburgermenyn till höger (inställningar), men BEHÅLL headern för navigation */
     #MainMenu { visibility: hidden; }
-    header { visibility: hidden; }
+    
+    /* TA BORT eller KOMMENTERA BORT denna rad för att se menyknappen på mobilen: */
+    /* header { visibility: hidden; } */ 
+    
     footer { visibility: hidden; }
     
     .block-container {
@@ -21,6 +25,8 @@ st.markdown("""
         max-width: 100%;
     }
 
+    /* ... RESTEN AV DIN CSS (KORTET, KNAPPARNA ETC) ÄR SAMMA SOM FÖRUT ... */
+    
     .quran-card {
         background-color: #ffffff;
         border-radius: 16px;
