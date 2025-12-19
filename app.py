@@ -21,11 +21,9 @@ st.markdown("""
     footer { visibility: hidden; }
     
     .block-container {
-        padding: 2.5rem 1rem !important;
+        padding: 2.8rem 1rem !important;
         max-width: 100%;
     }
-
-    /* ... RESTEN AV DIN CSS (KORTET, KNAPPARNA ETC) ÄR SAMMA SOM FÖRUT ... */
     
     .quran-card {
         background-color: #ffffff;
@@ -109,12 +107,12 @@ def fetch_verses_data(chapter_num):
 
 def calculate_font_size(text):
     l = len(text)
-    if l < 50: return "60px"
-    elif l < 100: return "52px"
-    elif l < 200: return "44px"
-    elif l < 400: return "36px"
-    elif l < 700: return "28px"
-    else: return "24px"
+    if l < 50: return "40px"
+    elif l < 100: return "35px"
+    elif l < 200: return "30px"
+    elif l < 400: return "25px"
+    elif l < 700: return "20px"
+    else: return "16px"
 
 with st.sidebar:
     st.title("Inställningar")
