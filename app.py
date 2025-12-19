@@ -54,13 +54,12 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
     
-    /* Global layout-optimering */
     .stApp { background-color: #ffffff; }
     .block-container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
     header, footer, [data-testid="stSidebar"] { display: none !important; }
     div[data-testid="stVerticalBlock"] { gap: 0rem !important; }
 
-    /* Knapp-styling för titeln (inställningar) */
+    /* Knapp-styling för titeln */
     .stButton > button {
         min-height: 0px !important;
         height: auto !important;
@@ -72,14 +71,14 @@ st.markdown("""
         font-weight: 700 !important;
     }
 
-    /* Sidopilar - Flyttade ner något för bättre ergonomi */
+    /* Sidopilar */
     div[data-testid="column"]:nth-of-type(1) .stButton > button, 
     div[data-testid="column"]:nth-of-type(3) .stButton > button {
         font-size: 3rem !important;
         color: #e0e0e0 !important;
         height: 80vh !important;
         width: 100% !important;
-        margin-top: 30px !important; 
+        margin-top: 40px !important; 
     }
 
     .arabic-text {
@@ -88,7 +87,7 @@ st.markdown("""
         text-align: center;
         color: #000;
         width: 100%;
-        padding: 0 5px; /* Minimal padding för maximal textbredd */
+        padding: 0 5px;
     }
 
     .meta-tag {
@@ -99,6 +98,12 @@ st.markdown("""
         padding: 3px 10px;
         border-radius: 12px;
     }
+    
+    /* Container för att styra luft över headern */
+    .header-wrapper {
+        padding-top: 12px;
+        padding-bottom: 5px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -108,9 +113,11 @@ def open_settings():
     st.markdown("### Välj Kapitel")
     new_chapter = st.slider("Kapitel", 1, 114, st.session_state.chapter)
     
+    # Hämta info för det kapitel som är valt i slidern just nu
     _, _, total_verses = get_chapter_info(new_chapter)
 
-    # Om kapitel ändras i slidern, uppdatera intervallet automatiskt
+    # Om vi har bytt kapitel i slidern jmf med session_state, 
+    # nollställ intervallet till hela kapitlet
     if new_chapter != st.session_state.chapter:
         default_range = (1, total_verses)
     else:
@@ -148,14 +155,15 @@ if selected_data:
     font_size, line_height = calculate_text_settings(raw_text)
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
 
-    # 1. PROGRESS BAR LÄNGST UPP
+    # 1. PROGRESS BAR (TOP)
     st.markdown(f"""
         <div style="width:100%; height:4px; background:#f0f0f0;">
             <div style="width:{progress_pct}%; height:100%; background:#2E8B57; transition: width 0.3s ease;"></div>
         </div>
     """, unsafe_allow_html=True)
 
-    # 2. HEADER (Juz, Titel, Nummer)
+    # 2. HEADER MED PADDING
+    st.markdown('<div class="header-wrapper">', unsafe_allow_html=True)
     hc1, hc2, hc3 = st.columns([1, 6, 1], vertical_alignment="center")
     with hc1: 
         st.markdown(f'<div style="text-align:center;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
@@ -164,8 +172,9 @@ if selected_data:
             open_settings()
     with hc3: 
         st.markdown(f'<div style="text-align:center;"><span class="meta-tag">#{verse_num}</span></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    # 3. MAIN INTERFACE
+    # 3. MAIN CARD
     c_left, c_center, c_right = st.columns([1, 8, 1])
     
     with c_left:
