@@ -66,7 +66,7 @@ st.markdown("""
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 0 30px;
+        padding: 5px 10px;
         overflow-y: auto;
     }
 
