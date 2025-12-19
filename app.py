@@ -14,7 +14,7 @@ if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7 
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
 
-# --- 2. HÄMTA DATA ---
+# --- 2. DATA FUNCTIONS ---
 @st.cache_data(show_spinner=False)
 def get_chapter_info(chapter_id):
     try:
@@ -30,102 +30,124 @@ def fetch_verses_data(chapter_num):
 
 def calculate_font_size(text):
     l = len(text)
-    if l < 50: return "40px"
-    elif l < 100: return "35px"
-    elif l < 200: return "30px"
-    elif l < 400: return "25px"
-    elif l < 700: return "20px"
-    else: return "16px"
+    # Lite större text nu när vi har hela skärmen
+    if l < 50: return "5vw" # Responsiv storlek baserat på skärmbredd (vw)
+    elif l < 100: return "4vw"
+    elif l < 200: return "3.5vw"
+    elif l < 400: return "2.5vw"
+    else: return "2vw"
 
-# --- 3. CSS DESIGN (Uppdaterad för vitt kort) ---
+# --- 3. CSS "FULLSCREEN / FILL" ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
     
-    /* 1. BAKGRUND FÖR HELA APPEN (Ljusgrå för kontrast) */
+    /* 1. NOLLSTÄLLNING AV STREAMLIT LAYOUT */
     .stApp {
-        background-color: #f0f2f6;
-    }
-
-    /* 2. DÖLJ MENYER */
-    header {display: none !important;}
-    [data-testid="stSidebar"] {display: none !important;}
-    footer {display: none !important;}
-    .stApp { margin-top: -50px; }
-
-    /* 3. STYLA MITT-KOLUMNEN TILL ETT KORT */
-    /* Detta väljer den andra kolumnen (där kortet ligger) */
-    div[data-testid="column"]:nth-of-type(2) > div {
-        background-color: #ffffff !important; /* TVINGA VIT BAKGRUND */
-        border-radius: 16px;
-        border: 1px solid #e0e0e0;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        padding: 0px !important; /* Ta bort padding så headern når kanten */
-        overflow: hidden;
-    }
-
-    /* Header inuti kortet */
-    .internal-header {
-        background-color: #f8f9fa;
-        border-bottom: 1px solid #eee;
-        padding: 10px 0px;
-        margin-bottom: 10px;
-    }
-
-    /* Titel-knappen (Gör den mörkgrön och tydlig) */
-    div[data-testid="stButton"] button {
-        border: none;
-        background: transparent;
-        color: #2E8B57 !important; /* Tvinga färgen */
-        font-weight: 700;
-        font-size: 1.3rem;
-        width: 100%;
-        margin-top: -5px;
-    }
-    div[data-testid="stButton"] button:hover {
-        color: #1e5c39 !important;
-        background: rgba(0,0,0,0.05);
+        background-color: #ffffff; /* Hela skärmen är vit */
     }
     
-    /* Pilarna på sidorna (vänster/höger kolumn) */
-    div[data-testid="column"]:nth-of-type(1) button, 
-    div[data-testid="column"]:nth-of-type(3) button {
-        color: #ccc !important;
-        font-size: 3rem;
-        height: 70vh;
+    /* Ta bort all padding från huvudcontainern */
+    .block-container {
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+        padding-left: 0rem !important;
+        padding-right: 0rem !important;
+        max-width: 100% !important;
+        margin: 0 !important;
     }
-    div[data-testid="column"]:nth-of-type(1) button:hover, 
-    div[data-testid="column"]:nth-of-type(3) button:hover {
-        color: #2E8B57 !important;
-        background-color: transparent;
+    
+    /* Dölj menyer */
+    header, footer, [data-testid="stSidebar"] { display: none !important; }
+
+    /* 2. LAYOUT STRUKTUR (Grid för hela skärmen) */
+    /* Vi använder CSS Grid för att skapa en layout: Header (top), Content (mid), Footer (bottom) */
+    
+    .fullscreen-wrapper {
+        height: 100vh; /* 100% av skärmhöjden */
+        width: 100vw;  /* 100% av skärmbredden */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        overflow: hidden; /* Inga scrollbars */
     }
 
-    /* Arabisk Text */
+    /* 3. HEADER (Titel-knappen) */
+    .top-bar {
+        flex: 0 0 60px; /* Fast höjd */
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        background-color: #f8f9fa; /* Ljus grå boarder top */
+        border-bottom: 1px solid #eee;
+        z-index: 10;
+    }
+
+    /* 4. MAIN CONTENT AREA */
+    .content-area {
+        flex: 1; /* Ta all kvarvarande plats */
+        display: flex;
+        align-items: center; /* Vertikal centrering */
+        justify-content: center; /* Horisontell centrering */
+        padding: 20px 60px; /* Padding så text inte nuddar pilarna */
+        position: relative;
+    }
+
+    /* 5. PILARNA (Flytande knappar) */
+    /* Vi stylar Streamlit-knapparna i kolumn 1 och 3 att vara osynliga overlays på sidorna */
+    div[data-testid="column"]:nth-of-type(1), 
+    div[data-testid="column"]:nth-of-type(3) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+    }
+    
+    /* Själva knapparna */
+    button.nav-btn {
+        background: transparent !important;
+        border: none !important;
+        font-size: 3rem !important;
+        color: #e0e0e0 !important;
+        height: 100vh !important; /* Knappen täcker hela höjden för enkel klickning */
+        width: 100% !important;
+    }
+    button.nav-btn:hover {
+        color: #2E8B57 !important;
+        background: rgba(0,0,0,0.02) !important;
+    }
+    button.nav-btn:active {
+        color: #1e5c39 !important;
+    }
+
+    /* 6. TEXT & STYLING */
     .arabic-text {
         font-family: 'Scheherazade New', serif;
-        line-height: 2.2;
+        line-height: 2;
         direction: rtl;
         text-align: center;
-        color: #000000 !important; /* Tvinga SVART text */
+        color: #000;
         width: 100%;
-        padding: 0 20px;
+        /* Font-size sätts dynamiskt via Python */
     }
 
-    /* Meta taggar (Juz / Vers nr) */
-    .meta-text {
-        font-family: sans-serif; 
-        font-size: 0.9rem; 
-        color: #555;
-        font-weight: 600; 
-        background-color: #e8f5e9; 
-        padding: 5px 12px; 
-        border-radius: 8px;
-        display: inline-block;
+    .meta-tag {
+        font-family: sans-serif; font-size: 0.8rem; color: #888; font-weight: 600;
+        background: #f1f1f1; padding: 4px 10px; border-radius: 12px;
     }
 
-    /* Progress bar */
-    .progress-container { width: 100%; height: 4px; background-color: #eee; margin-top: -10px; margin-bottom: 20px;}
-    .progress-bar { height: 100%; background-color: #2E8B57; transition: width 0.3s ease; }
+    /* Titel-knapp styling */
+    .title-btn-style {
+        border: none; background: transparent; 
+        color: #2E8B57; font-weight: 700; font-size: 1.2rem; cursor: pointer;
+    }
+    
+    /* Progress Bar i toppen (under header) */
+    .progress-line {
+        height: 4px; width: 100%; background: #eee; position: absolute; top: 60px; left: 0;
+    }
+    .progress-fill { height: 100%; background: #2E8B57; transition: width 0.3s; }
 
 </style>
 """, unsafe_allow_html=True)
@@ -133,102 +155,116 @@ st.markdown("""
 # --- 4. POPUP MENY ---
 @st.dialog("Inställningar")
 def open_settings():
-    st.write("Konfigurera läsning")
+    st.write("Navigering")
     new_chapter = st.number_input("Kapitel (1-114)", 1, 114, st.session_state.chapter)
     _, _, total_verses = get_chapter_info(new_chapter)
     
     c1, c2 = st.columns(2)
     with c1:
         default_start = 1 if new_chapter != st.session_state.chapter else st.session_state.start_v
-        new_start = st.number_input("Startvers", 1, total_verses, default_start)
+        new_start = st.number_input("Start", 1, total_verses, default_start)
     with c2:
         default_end = total_verses if new_chapter != st.session_state.chapter else st.session_state.end_v
-        new_end = st.number_input("Slutvers", new_start, total_verses, default_end)
+        new_end = st.number_input("Slut", new_start, total_verses, default_end)
 
-    if st.button("Klar", type="primary", use_container_width=True):
+    if st.button("Ladda", type="primary", use_container_width=True):
         st.session_state.chapter = new_chapter
         st.session_state.start_v = new_start
         st.session_state.end_v = new_end
         st.session_state.card_index = 0
         st.rerun()
 
-# --- 5. LOGIK ---
+# --- 5. LOGIC & RENDER ---
 verses_data = fetch_verses_data(st.session_state.chapter)
 surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
+
 start_idx = st.session_state.start_v - 1
 end_idx = st.session_state.end_v
 selected_data = verses_data[start_idx : end_idx]
 
 if st.session_state.card_index >= len(selected_data): st.session_state.card_index = 0
 
-# --- 6. RENDER UI ---
 if selected_data:
     obj = selected_data[st.session_state.card_index]
     raw_text = obj['text_uthmani']
     juz = obj['juz_number']
     verse_num = obj['verse_key'].split(':')[1]
     
+    # Progress
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
     font_size = calculate_font_size(raw_text)
 
-    # Layout med 3 kolumner. Mitten-kolumnen stylas via CSS att bli "kortet"
-    col_l, col_c, col_r = st.columns([1, 10, 1])
+    # --- LAYOUT STRATEGI: Lager på lager ---
+    # Eftersom vi vill ha total kontroll på layouten använder vi "fixed" element för headern
+    # och st.columns bara för navigationspilarna.
     
-    with col_l:
-        st.write("") 
+    # 1. HEADER (Custom HTML)
+    # Eftersom st.button inte går att lägga i HTML enkelt, använder vi st.columns för headern
+    # Vi lägger en container högst upp
+    
+    header_container = st.container()
+    with header_container:
+        # En rad för Header
+        hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
+        with hc1:
+            st.markdown(f'<div style="text-align:center; padding-top:15px;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
+        with hc2:
+            if st.button(f"{surah_en} | {surah_ar}", key="title_btn", use_container_width=True):
+                open_settings()
+        with hc3:
+            st.markdown(f'<div style="text-align:center; padding-top:15px;"><span class="meta-tag">#{verse_num}</span></div>', unsafe_allow_html=True)
+        
+        # Progress bar precis under header
+        st.markdown(f"""
+        <div style="width:100%; height:4px; background:#f0f0f0; margin-top: 10px;">
+            <div style="width:{progress_pct}%; height:100%; background:#2E8B57; transition:width 0.3s;"></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # 2. HUVUDINNEHÅLL (Text + Pilar)
+    # Vi använder resten av höjden
+    
+    # För att texten ska centreras vertikalt (mitt på skärmen) använder vi lite CSS trick i kolumnerna
+    # Vi sätter kolumnerna till att ta upp t.ex. 80vh
+    
+    c_left, c_center, c_right = st.columns([1, 8, 1])
+    
+    with c_left:
+        # VÄNSTER PIL
+        # En osynlig knapp som täcker hela vänstra sidan
         st.write("")
         st.write("")
-        if st.button("❮", key="prev", use_container_width=True):
+        st.markdown('<style>div[data-testid="column"]:nth-of-type(1) button {height: 80vh; border:none;}</style>', unsafe_allow_html=True)
+        if st.button("❮", key="prev", help="Föregående"):
             if st.session_state.card_index > 0:
                 st.session_state.card_index -= 1
                 st.rerun()
 
-    with col_c:
-        # --- HEADER PÅ KORTET ---
-        # Vi skapar en "falsk" header med bakgrundsfärg via CSS på containern, 
-        # men vi kan lägga till en container här för struktur.
-        with st.container():
-            st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True) # Spacer top
-            
-            # Header-rad med Juz, Titel-knapp, Versnummer
-            h1, h2, h3 = st.columns([1, 4, 1], gap="small", vertical_alignment="center")
-            
-            with h1:
-                st.markdown(f'<div style="text-align:center;"><span class="meta-text">Juz {juz}</span></div>', unsafe_allow_html=True)
-            
-            with h2:
-                # TITEL-KNAPPEN
-                label = f"{surah_en}  |  {surah_ar}"
-                if st.button(label, use_container_width=True):
-                    open_settings()
-            
-            with h3:
-                st.markdown(f'<div style="text-align:center;"><span class="meta-text"># {verse_num}</span></div>', unsafe_allow_html=True)
-            
-            st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True) # Spacer bottom
-            
-            # Progress Bar
-            st.markdown(f"""
-            <div class="progress-container">
-                <div class="progress-bar" style="width: {progress_pct}%;"></div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        # --- INNEHÅLL ---
-        # Scrollbar container för texten
+    with c_center:
+        # TEXTEN
+        # Flexbox container för att centrera texten exakt
         st.markdown(f"""
-        <div style="height: 55vh; display: flex; align-items: center; justify-content: center; overflow-y: auto;">
-            <div class="arabic-text" style="font-size: {font_size};">{raw_text}</div>
+        <div style="
+            height: 80vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            overflow-y: auto;">
+            <div class="arabic-text" style="font-size: {font_size};">
+                {raw_text}
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
-    with col_r:
+    with c_right:
+        # HÖGER PIL
         st.write("")
         st.write("")
-        st.write("")
-        if st.button("❯", key="next", use_container_width=True):
+        st.markdown('<style>div[data-testid="column"]:nth-of-type(3) button {height: 80vh; border:none;}</style>', unsafe_allow_html=True)
+        if st.button("❯", key="next", help="Nästa"):
             if st.session_state.card_index < len(selected_data) - 1:
                 st.session_state.card_index += 1
                 st.rerun()
+
 else:
-    st.info("Ingen data. Klicka på 'Klar' för att ladda.")
+    st.warning("Ingen data. Öppna inställningar.")
