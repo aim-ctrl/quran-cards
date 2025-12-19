@@ -118,7 +118,7 @@ st.markdown("""
         background: rgba(0,0,0,0.02) !important;
     }
     button.nav-btn:active {
-        color: #1e5c39 !important;
+        color: #2E8B57 !important;
     }
 
     /* 6. TEXT & STYLING */
