@@ -12,19 +12,27 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
     
-    /* Dölj hamburgermenyn till höger (inställningar), men BEHÅLL headern för navigation */
-    #MainMenu { visibility: hidden; }
+    /* --- HÄR ÄR ÄNDRINGEN FÖR HEADERN --- */
+    /* Gör headerns bakgrund genomskinlig men behåll knappar synliga */
+    header[data-testid="stHeader"] {
+        background-color: rgba(0,0,0,0);
+    }
     
-    /* TA BORT eller KOMMENTERA BORT denna rad för att se menyknappen på mobilen: */
-    /* header { visibility: hidden; } */ 
+    /* Alternativ: Om du vill att innehållet ska flytta upp lite högre kan du minska paddingen här */
+    .block-container {
+        padding-top: 2rem !important; /* Lite mindre padding i toppen */
+        padding-bottom: 1rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        max-width: 100%;
+    }
+
+    /* Dölj de tre prickarna (inställningar) till höger om du vill, men behåll sidomeny-knappen */
+    #MainMenu { visibility: hidden; }
     
     footer { visibility: hidden; }
     
-    .block-container {
-        padding: 2.8rem 1rem !important;
-        max-width: 100%;
-    }
-    
+    /* --- RESTEN AV DIN CSS --- */
     .quran-card {
         background-color: #ffffff;
         border-radius: 16px;
@@ -92,6 +100,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# --- Här fortsätter resten av din Python-kod (cache-funktioner etc) oförändrat ---
 @st.cache_data(show_spinner=False)
 def get_chapter_info(chapter_id):
     try:
