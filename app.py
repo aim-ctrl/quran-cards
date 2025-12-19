@@ -90,7 +90,7 @@ st.markdown("""
         display: flex;
         align-items: center; /* Vertikal centrering */
         justify-content: center; /* Horisontell centrering */
-        padding: 20px 60px; /* Padding så text inte nuddar pilarna */
+        padding: 0px 60px; /* Padding så text inte nuddar pilarna */
         position: relative;
     }
 
