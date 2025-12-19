@@ -30,7 +30,7 @@ st.markdown("""
     .quran-card {
         background-color: #ffffff;
         border-radius: 16px;
-        height: 85vh;
+        height: 75vh;
         width: 100%;
         border: 1px solid #e0e0e0;
         box-shadow: 0 4px 20px rgba(0,0,0,0.08);
