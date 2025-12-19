@@ -45,64 +45,68 @@ st.markdown("""
     .stApp { background-color: #ffffff; }
     
     .block-container {
-        padding-top: 0rem !important;
-        padding-bottom: 0rem !important;
-        padding-left: 0rem !important;
-        padding-right: 0rem !important;
-        max-width: 100% !important;
+        padding: 0 !important;
         margin: 0 !important;
+        max-width: 100% !important;
     }
     
     header, footer, [data-testid="stSidebar"] { display: none !important; }
 
-    /* 2. HEADER (Uppdaterad höjd) */
-    .top-bar {
-        flex: 0 0 0 px; /* <-- Minskad höjd här (var 60px) */
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 20px;
-        background-color: #f8f9fa;
-        border-bottom: 1px solid #eee;
-        z-index: 10;
+    /* Minska gapet mellan rader drastiskt */
+    div[data-testid="stVerticalBlock"] {
+        gap: 0rem !important; 
     }
 
-    /* 3. KNAPP-STYLING */
+    /* 2. AGGRESSIV KNAPP-OPTIMERING (Gäller ALLA knappar först) */
+    /* Detta gör Title-knappen supertunn */
+    .stButton > button {
+        min-height: 0px !important;
+        height: auto !important;
+        padding: 4px 10px !important; /* Minimal padding */
+        line-height: 1.2 !important;
+        border: none !important;
+        background: transparent !important;
+        color: #2E8B57 !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Hover för Title-knappen */
+    .stButton > button:hover {
+        background: #f9f9f9 !important;
+    }
+
+    /* 3. ÅTERSTÄLL PILARNA (Override för Nav-knapparna) */
+    /* Vi måste tvinga tillbaka höjden på pilarna eftersom vi plattade till dem ovan */
     div[data-testid="column"]:nth-of-type(1) .stButton > button, 
     div[data-testid="column"]:nth-of-type(3) .stButton > button {
-        background-color: transparent !important;
-        border: none !important;
         font-size: 3rem !important;
         color: #e0e0e0 !important;
-        height: 80vh !important; 
+        height: 90vh !important; /* Täcker nästan hela skärmen */
         width: 100% !important;
-        box-shadow: none !important;
-        outline: none !important;
+        padding: 0 !important; /* Ingen padding på pilarna */
+        background: transparent !important;
     }
 
+    /* Hover/Focus States för PILARNA */
+    div[data-testid="column"]:nth-of-type(1) .stButton > button:hover, 
+    div[data-testid="column"]:nth-of-type(3) .stButton > button:hover {
+        color: #2E8B57 !important;
+        background: transparent !important;
+    }
+    
     div[data-testid="column"]:nth-of-type(1) .stButton > button:focus, 
     div[data-testid="column"]:nth-of-type(3) .stButton > button:focus,
     div[data-testid="column"]:nth-of-type(1) .stButton > button:active, 
     div[data-testid="column"]:nth-of-type(3) .stButton > button:active {
-        background-color: transparent !important;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
         color: #e0e0e0 !important;
-    }
-
-    div[data-testid="column"]:nth-of-type(1) .stButton > button:hover, 
-    div[data-testid="column"]:nth-of-type(3) .stButton > button:hover,
-    div[data-testid="column"]:nth-of-type(1) .stButton > button:focus:hover, 
-    div[data-testid="column"]:nth-of-type(3) .stButton > button:focus:hover {
-        color: #2E8B57 !important;
-        background-color: transparent !important;
+        background: transparent !important;
+        box-shadow: none !important;
     }
 
     /* 4. TEXT STYLING */
     .arabic-text {
         font-family: 'Scheherazade New', serif;
-        line-height: 1.8;
+        line-height: 1.6;
         direction: rtl;
         text-align: center;
         color: #000;
@@ -110,9 +114,24 @@ st.markdown("""
         padding: 0 20px;
     }
 
+    /* Mindre taggar för att spara höjd */
     .meta-tag {
-        font-family: sans-serif; font-size: 0.8rem; color: #888; font-weight: 600;
-        background: #f1f1f1; padding: 4px 10px; border-radius: 12px;
+        font-family: sans-serif; 
+        font-size: 0.7rem; /* Mindre text */
+        color: #aaa; 
+        font-weight: 600;
+        background: #f8f8f8; 
+        padding: 2px 8px; /* Mindre luft */
+        border-radius: 8px;
+        display: inline-block;
+    }
+    
+    /* Styling för topp-raden för att ge den lite struktur */
+    div[data-testid="stHorizontalBlock"]:first-of-type {
+        border-bottom: 1px solid #eee;
+        padding-top: 5px;
+        padding-bottom: 5px;
+        background-color: #ffffff;
     }
 
 </style>
@@ -163,22 +182,21 @@ if selected_data:
     # 1. HEADER CONTAINER
     header_container = st.container()
     with header_container:
-        # vertical_alignment="center" sköter centreringen nu när padding är borta
-        hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
+        # Justerade kolumnbredder för att tighta till det
+        hc1, hc2, hc3 = st.columns([1, 6, 1], vertical_alignment="center")
         
         with hc1:
-            # Tog bort padding-top:15px här för att passa den lägre listen
             st.markdown(f'<div style="text-align:center;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
         with hc2:
+            # Titeln är nu en väldigt tunn knapp
             if st.button(f"{surah_en} | {surah_ar}", key="title_btn", use_container_width=True):
                 open_settings()
         with hc3:
-            # Tog bort padding-top:15px här också
             st.markdown(f'<div style="text-align:center;"><span class="meta-tag">#{verse_num}</span></div>', unsafe_allow_html=True)
         
-        # Progress bar - tog bort margin-top för att den ska ligga tajt
+        # Progress bar - ultra-slim
         st.markdown(f"""
-        <div style="width:100%; height:4px; background:#f0f0f0; margin-top: 0px;">
+        <div style="width:100%; height:3px; background:#f0f0f0; margin-top: 0px;">
             <div style="width:{progress_pct}%; height:100%; background:#2E8B57; transition:width 0.3s;"></div>
         </div>
         """, unsafe_allow_html=True)
@@ -187,8 +205,7 @@ if selected_data:
     c_left, c_center, c_right = st.columns([1, 8, 1])
     
     with c_left:
-        st.write("")
-        st.write("")
+        st.write("") # Lite distans från toppen
         if st.button("❮", key="prev"):
             if st.session_state.card_index > 0:
                 st.session_state.card_index -= 1
@@ -197,7 +214,7 @@ if selected_data:
     with c_center:
         st.markdown(f"""
         <div style="
-            height: 80vh; 
+            height: 85vh; /* Mer plats för text nu när headern är liten */
             display: flex; 
             align-items: center; 
             justify-content: center; 
@@ -209,7 +226,6 @@ if selected_data:
         """, unsafe_allow_html=True)
 
     with c_right:
-        st.write("")
         st.write("")
         if st.button("❯", key="next"):
             if st.session_state.card_index < len(selected_data) - 1:
