@@ -21,7 +21,7 @@ st.markdown("""
     footer { visibility: hidden; }
     
     .block-container {
-        padding: 1.5rem 1rem !important;
+        padding: 2.5rem 1rem !important;
         max-width: 100%;
     }
 
