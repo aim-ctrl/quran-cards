@@ -108,10 +108,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 4. DIALOG (SETTINGS) ---
-@st.dialog("Inställningar")
 def open_settings():
-    st.markdown("### Välj Kapitel")
-    new_chapter = st.slider("Kapitel", 1, 114, st.session_state.chapter)
+    new_chapter = st.slider("Chapter", 1, 114, st.session_state.chapter)
     
     # Hämta info för det kapitel som är valt i slidern just nu
     _, _, total_verses = get_chapter_info(new_chapter)
@@ -123,14 +121,13 @@ def open_settings():
     else:
         default_range = (st.session_state.start_v, min(st.session_state.end_v, total_verses))
 
-    st.markdown("### Välj Versintervall")
     verse_range = st.slider(
-        "Verser", 
+        "Verses", 
         1, total_verses, 
         default_range
     )
 
-    if st.button("Ladda valda verser", type="primary", use_container_width=True):
+    if st.button("Load selected verses", type="primary", use_container_width=True):
         st.session_state.chapter = new_chapter
         st.session_state.start_v = verse_range[0]
         st.session_state.end_v = verse_range[1]
