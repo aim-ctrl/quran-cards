@@ -164,9 +164,9 @@ if selected_data:
 
     # 2. HEADER MED PADDING
     st.markdown('<div class="header-wrapper">', unsafe_allow_html=True)
-    hc1, hc2, hc3 = st.columns([1, 6, 1], vertical_alignment="center")
+    hc1, hc2, hc3 = st.columns([1, 10, 1], vertical_alignment="center")
     with hc1: 
-        st.markdown(f'<div style="text-align:center;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="text-align:top;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
     with hc2: 
         if st.button(f"{surah_en} | {surah_ar}", use_container_width=True):
             open_settings()
