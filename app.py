@@ -94,7 +94,7 @@ st.markdown("""
         font-family: sans-serif; 
         font-size: 0.55rem;
         color: #888; 
-        background: #f0f2f6; 
+        background: #4287f5; 
         padding: 3px 3px;
         border-radius: 12px;
     }
