@@ -34,7 +34,7 @@ def fetch_verses_data(chapter_num):
 def get_clean_length(text):
     return len([c for c in text if unicodedata.category(c) != 'Mn'])
 
-def calculate_smart_text_settings(text):
+def calculate_text_settings(text):
     # Vi antar att denna funktion finns definierad
     clean_len = get_clean_length(text)
     
