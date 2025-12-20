@@ -84,15 +84,6 @@ st.markdown("""
         width: 100%;
         padding: 0 10px;
     }
-
-    .meta-tag {
-        font-family: sans-serif; 
-        font-size: 0.75rem;
-        color: #ffffff; 
-        background: #4287f5; 
-        padding: 3px 8px;
-        border-radius: 12px;
-    }
     
     .header-wrapper {
         padding-top: 20px;
@@ -176,7 +167,7 @@ if selected_data:
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
 
     # 1. Progress Bar
-    st.markdown(f'<div style="width:100%; height:2px; background:#f0f0f0;"><div style="width:{progress_pct}%; height:100%; background:#2E8B57;"></div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="width:100%; height:3px; background:#f0f0f0;"><div style="width:{progress_pct}%; height:100%; background:#2E8B57;"></div></div>', unsafe_allow_html=True)
 
     # 2. Header (hc1: Juz, hc2: Namn, hc3: Vers)
     st.markdown('<div class="header-wrapper">', unsafe_allow_html=True)
@@ -187,7 +178,7 @@ if selected_data:
     st.markdown('</div>', unsafe_allow_html=True)
 
     # 3. Main Card
-    c_left, c_center, c_right = st.columns([1, 8, 1])
+    c_left, c_center, c_right = st.columns([1, 20, 1])
     
     with c_left:
         if st.button("❮", key="prev") and st.session_state.card_index > 0:
