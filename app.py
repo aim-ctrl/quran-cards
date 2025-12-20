@@ -63,7 +63,7 @@ st.markdown("""
     .stButton > button {
         min-height: 0px !important;
         height: auto !important;
-        padding: 4px 10px !important;
+        padding: 4px 0px !important;
         line-height: 1.2 !important;
         border: none !important;
         background: transparent !important;
