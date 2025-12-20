@@ -92,7 +92,7 @@ st.markdown("""
 
     .meta-tag {
         font-family: sans-serif; 
-        font-size: 0.55rem;
+        font-size: 0.75rem;
         color: #ffffff; 
         background: #4287f5; 
         padding: 3px 3px;
@@ -130,7 +130,7 @@ def open_settings():
         default_range
     )
 
-    if st.button("Ladda valda verser", type="primary", use_container_width=True):
+    if st.button("Load", type="primary", use_container_width=True):
         st.session_state.chapter = new_chapter
         st.session_state.start_v = verse_range[0]
         st.session_state.end_v = verse_range[1]
@@ -157,7 +157,7 @@ if selected_data:
 
     # 1. PROGRESS BAR (TOP)
     st.markdown(f"""
-        <div style="width:100%; height:4px; background:#f0f0f0;">
+        <div style="width:100%; height:2px; background:#f0f0f0;">
             <div style="width:{progress_pct}%; height:100%; background:#2E8B57; transition: width 0.3s ease;"></div>
         </div>
     """, unsafe_allow_html=True)
@@ -166,7 +166,7 @@ if selected_data:
     st.markdown('<div class="header-wrapper">', unsafe_allow_html=True)
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     with hc1: 
-        st.markdown(f'<div style="text-align:top;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="text-align:center;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
     with hc2: 
         if st.button(f"{surah_en} | {surah_ar}", use_container_width=True):
             open_settings()
