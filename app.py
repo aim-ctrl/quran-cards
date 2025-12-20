@@ -181,7 +181,7 @@ if selected_data:
     with hc1: 
         st.markdown(f'<div style="text-align:center;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
     with hc2: 
-        if st.button(f"{surah_en} | {surah_ar}", use_container_width=True):
+        if st.button(f"Juz {juz} | {surah_en} | {surah_ar}", use_container_width=True):
             open_settings()
     with hc3: 
         st.markdown(f'<div style="text-align:center;"><span class="meta-tag">#{verse_num}</span></div>', unsafe_allow_html=True)
