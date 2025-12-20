@@ -35,12 +35,15 @@ def get_clean_length(text):
     return len([c for c in text if unicodedata.category(c) != 'Mn'])
 
 def calculate_text_settings(text):
+    # Vi antar att denna funktion finns definierad någon annanstans i din kod
     clean_len = get_clean_length(text)
-    if clean_len < 40: return "8.5vw", "1.6"
-    elif clean_len < 80: return "7vw", "1.7"
-    elif clean_len < 150: return "5.5vw", "1.8"
-    elif clean_len < 300: return "4vw", "1.9"
-    else: return "3vw", "2.0"
+    
+    # Beräkna storleken baserat på din formel: (7.5 - 0.01 * längd)
+    size_value = 7.5 - (0.01 * clean_len)
+    
+    # Returnera det beräknade värdet med "vw" och den konstanta höjden "2.0"
+    return f"{size_value}vw", "2.0"
+
 
 # --- 3. CSS STYLING ---
 st.markdown("""
