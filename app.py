@@ -11,6 +11,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Initiera session state om de inte finns
 if 'chapter' not in st.session_state: st.session_state.chapter = 1
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7 
@@ -22,7 +23,7 @@ if 'card_index' not in st.session_state: st.session_state.card_index = 0
 def get_chapters_map():
     """Hämtar namn på alla kapitel för att visa i slidern."""
     try:
-        resp = requests.get("https://api.quran.com/api/v4/chapters").json()
+        resp = requests.get("https://api.quran.com/api/v4/chapters?language=en").json()
         return {c['id']: c['name_simple'] for c in resp['chapters']}
     except:
         return {i: f"Chapter {i}" for i in range(1, 115)}
@@ -51,7 +52,7 @@ def calculate_text_settings(text):
     elif clean_len < 300: return "4vw", "1.9"
     else: return "3vw", "2.0"
 
-# --- 3. CSS STYLING (Återställd till stabil bas) ---
+# --- 3. CSS STYLING ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
@@ -59,9 +60,8 @@ st.markdown("""
     .stApp { background-color: #ffffff; }
     .block-container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
     header, footer, [data-testid="stSidebar"] { display: none !important; }
-    div[data-testid="stVerticalBlock"] { gap: 0rem !important; }
 
-    /* Header-knapp styling */
+    /* Central header-knapp */
     .stButton > button {
         border: none !important;
         background: transparent !important;
@@ -70,7 +70,7 @@ st.markdown("""
         font-size: 1.1rem !important;
     }
 
-    /* Dölj pilar för användaren men behåll dem i DOM för swipe */
+    /* Dölj pilar för användaren men behåll för Swipe */
     div[data-testid="column"]:nth-of-type(1) .stButton > button, 
     div[data-testid="column"]:nth-of-type(3) .stButton > button {
         opacity: 0 !important;
@@ -105,9 +105,7 @@ def add_swipe_support():
         let touchendX = 0;
 
         function handleSwipe() {
-            // Blockera swipe om Settings-dialogen är öppen
             if (doc.querySelector('div[data-testid="stDialog"]')) return;
-
             const diff = touchendX - touchstartX;
             if (Math.abs(diff) > 60) {
                 if (diff > 0) {
@@ -119,7 +117,6 @@ def add_swipe_support():
                 }
             }
         }
-
         doc.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; }, false);
         doc.addEventListener('touchend', e => { touchendX = e.changedTouches[0].screenX; handleSwipe(); }, false);
     </script>
@@ -133,22 +130,31 @@ add_swipe_support()
 def open_settings():
     ch_map = get_chapters_map()
     
-    # Slider som nu visar namnet på kapitlet
+    # 1. Kapitel-slider
     new_chapter = st.slider(
-        "Chapter", 
-        1, 114, 
+        "Chapter", 1, 114, 
         st.session_state.chapter,
         format_func=lambda x: f"{x}. {ch_map.get(x, '')}"
     )
     
     _, _, total_verses = get_chapter_info(new_chapter)
 
+    # 2. Beräkna standardvärde för vers-slidern
     if new_chapter != st.session_state.chapter:
         default_range = (1, total_verses)
     else:
-        default_range = (st.session_state.start_v, min(st.session_state.end_v, total_verses))
+        # Säkerställ att vi inte är utanför intervallet
+        curr_start = min(st.session_state.start_v, total_verses)
+        curr_end = min(st.session_state.end_v, total_verses)
+        default_range = (curr_start, curr_end)
 
-    verse_range = st.slider("Verses", 1, total_verses, default_range)
+    # 3. Vers-slider (VIKTIGT: nyckel baserad på kapitel för att undvika krasch)
+    verse_range = st.slider(
+        "Verses", 
+        1, total_verses, 
+        default_range,
+        key=f"v_slider_{new_chapter}" 
+    )
 
     if st.button("Load", type="primary", use_container_width=True):
         st.session_state.chapter = new_chapter
@@ -157,9 +163,10 @@ def open_settings():
         st.session_state.card_index = 0
         st.rerun()
 
-# --- 6. DATA PROCESSING & RENDER ---
-verses_data = fetch_verses_data(st.session_state.chapter)
+# --- 6. RENDER ---
+# (Hämta data baserat på inställningar)
 surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
+verses_data = fetch_verses_data(st.session_state.chapter)
 selected_data = verses_data[st.session_state.start_v - 1 : st.session_state.end_v]
 
 if selected_data:
@@ -174,28 +181,24 @@ if selected_data:
     font_size, line_height = calculate_text_settings(raw_text)
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
 
-    # 1. PROGRESS BAR
+    # UI: Progress Bar
     st.markdown(f'<div style="width:100%; height:2px; background:#f0f0f0;"><div style="width:{progress_pct}%; height:100%; background:#2E8B57;"></div></div>', unsafe_allow_html=True)
 
-    # 2. HEADER (Stabil 1-4-1 layout)
+    # UI: Header
     st.markdown('<div class="header-wrapper">', unsafe_allow_html=True)
-    hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
-    with hc2: 
-        # Här konkatenerar vi allt till en sträng för mittenknappen
+    hc1, hc2, hc3 = st.columns([1, 4, 1])
+    with hc2:
         header_label = f"Juz {juz} | {surah_en} | {surah_ar} | #{verse_num}"
         if st.button(header_label, use_container_width=True):
             open_settings()
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 3. MAIN CARD (Stabil 1-8-1 layout)
+    # UI: Main Card
     c_left, c_center, c_right = st.columns([1, 8, 1])
-    
     with c_left:
-        # Syns inte men används av JS
         if st.button("❮", key="prev") and st.session_state.card_index > 0:
             st.session_state.card_index -= 1
             st.rerun()
-
     with c_center:
         st.markdown(f"""
         <div style="height: 80vh; display: flex; align-items: center; justify-content: center; overflow-y: auto;">
@@ -204,12 +207,10 @@ if selected_data:
             </div>
         </div>
         """, unsafe_allow_html=True)
-
     with c_right:
-        # Syns inte men används av JS
         if st.button("❯", key="next") and st.session_state.card_index < len(selected_data) - 1:
             st.session_state.card_index += 1
             st.rerun()
 else:
-    if st.button("Öppna inställningar", use_container_width=True):
+    if st.button("No verses found. Open Settings."):
         open_settings()
