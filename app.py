@@ -78,7 +78,7 @@ st.markdown("""
         color: #e0e0e0 !important;
         height: 80vh !important;
         width: 100% !important;
-        margin-top: 40px !important; 
+        margin-top: 50px !important; 
     }
 
     .arabic-text {
