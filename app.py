@@ -34,15 +34,44 @@ def fetch_verses_data(chapter_num):
 def get_clean_length(text):
     return len([c for c in text if unicodedata.category(c) != 'Mn'])
 
-def calculate_text_settings(text):
-    # Vi antar att denna funktion finns definierad någon annanstans i din kod
+def calculate_smart_text_settings(text):
+    # Vi antar att denna funktion finns definierad
     clean_len = get_clean_length(text)
     
-    # Beräkna storleken baserat på din formel: (7.5 - 0.01 * längd)
-    size_value = 7.5 - (0.02 * clean_len)
+    # --- Inställningar ---
+    max_size = 9.0   # Största tillåtna storlek (vw)
+    min_size = 5.0   # Minsta tillåtna storlek (vw) - Läsbarhetsgräns
     
-    # Returnera det beräknade värdet med "vw" och den konstanta höjden "2.0"
-    return f"{size_value}vw", "1.85"
+    short_threshold = 50   # Teckengräns för "kort text"
+    long_threshold = 300   # Teckengräns där vi når minsta storlek
+    
+    # --- Logik ---
+    
+    if clean_len <= short_threshold:
+        # Om texten är kort, använd maximal storlek
+        final_size = max_size
+        line_height = "1.8" # Lite tajtare radavstånd för stora rubriker/kort text
+        
+    elif clean_len >= long_threshold:
+        # Om texten är väldigt lång, använd minsta storlek (golvet)
+        final_size = min_size
+        line_height = "2.2" # Mer luft (radavstånd) för lång brödtext ökar läsbarheten
+        
+    else:
+        # Mellanlång text: Skala mjukt mellan max och min
+        # Vi räknar ut hur många procent vi har "färdats" mellan kort och lång gräns
+        progress = (clean_len - short_threshold) / (long_threshold - short_threshold)
+        
+        # Minska storleken baserat på progress
+        size_diff = max_size - min_size
+        final_size = max_size - (progress * size_diff)
+        
+        # Justera radhöjden dynamiskt också (från 1.8 till 2.2)
+        line_height_val = 1.8 + (progress * 0.4)
+        line_height = f"{line_height_val:.2f}"
+
+    # Returnera formaterade värden
+    return f"{final_size:.2f}vw", line_height
 
 
 # --- 3. CSS STYLING ---
