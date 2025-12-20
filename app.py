@@ -42,7 +42,7 @@ def calculate_text_settings(text):
     size_value = 7.5 - (0.01 * clean_len)
     
     # Returnera det beräknade värdet med "vw" och den konstanta höjden "2.0"
-    return f"{size_value}vw", "2.0"
+    return f"{size_value}vw", "1.85"
 
 
 # --- 3. CSS STYLING ---
@@ -182,7 +182,7 @@ if selected_data:
     st.markdown('<div class="header-wrapper">', unsafe_allow_html=True)
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     with hc2: 
-        if st.button(f"Juz {juz} | {surah_en} | {surah_ar}", use_container_width=True):
+        if st.button(f"Juz {juz} | Chapter {chapter} | {surah_en} | {surah_ar} | Verse {verse_num}", use_container_width=True):
             open_settings()
     st.markdown('</div>', unsafe_allow_html=True)
 
