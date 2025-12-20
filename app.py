@@ -11,22 +11,12 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Initiera session state om de inte finns
 if 'chapter' not in st.session_state: st.session_state.chapter = 1
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7 
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
 
 # --- 2. LOGIC & HELPER FUNCTIONS ---
-
-@st.cache_data(show_spinner=False)
-def get_chapters_map():
-    """Hämtar namn på alla kapitel för att visa i slidern."""
-    try:
-        resp = requests.get("https://api.quran.com/api/v4/chapters?language=en").json()
-        return {c['id']: c['name_simple'] for c in resp['chapters']}
-    except:
-        return {i: f"Chapter {i}" for i in range(1, 115)}
 
 @st.cache_data(show_spinner=False)
 def get_chapter_info(chapter_id):
@@ -60,23 +50,27 @@ st.markdown("""
     .stApp { background-color: #ffffff; }
     .block-container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
     header, footer, [data-testid="stSidebar"] { display: none !important; }
+    div[data-testid="stVerticalBlock"] { gap: 0rem !important; }
 
-    /* Central header-knapp */
+    /* Knapp-styling för titeln */
     .stButton > button {
+        min-height: 0px !important;
+        height: auto !important;
+        padding: 4px 0px !important;
+        line-height: 1.2 !important;
         border: none !important;
         background: transparent !important;
         color: #2E8B57 !important;
         font-weight: 700 !important;
-        font-size: 1.1rem !important;
     }
 
-    /* Dölj pilar för användaren men behåll för Swipe */
+    /* Sidopilar (Dolda men aktiva för Swipe-skriptet) */
     div[data-testid="column"]:nth-of-type(1) .stButton > button, 
     div[data-testid="column"]:nth-of-type(3) .stButton > button {
         opacity: 0 !important;
-        pointer-events: none !important;
         height: 80vh !important;
         width: 100% !important;
+        pointer-events: none !important;
     }
 
     .arabic-text {
@@ -88,10 +82,18 @@ st.markdown("""
         padding: 0 10px;
     }
 
+    .meta-tag {
+        font-family: sans-serif; 
+        font-size: 0.75rem;
+        color: #ffffff; 
+        background: #4287f5; 
+        padding: 3px 8px;
+        border-radius: 12px;
+    }
+    
     .header-wrapper {
         padding-top: 20px;
         padding-bottom: 5px;
-        border-bottom: 1px solid #f8f8f8;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -105,7 +107,9 @@ def add_swipe_support():
         let touchendX = 0;
 
         function handleSwipe() {
+            // Blockera swipe om dialogrutan (Settings) är öppen
             if (doc.querySelector('div[data-testid="stDialog"]')) return;
+
             const diff = touchendX - touchstartX;
             if (Math.abs(diff) > 60) {
                 if (diff > 0) {
@@ -128,32 +132,20 @@ add_swipe_support()
 # --- 5. DIALOG (SETTINGS) ---
 @st.dialog("Settings")
 def open_settings():
-    ch_map = get_chapters_map()
-    
-    # 1. Kapitel-slider
-    new_chapter = st.slider(
-        "Chapter", 1, 114, 
-        st.session_state.chapter,
-        format_func=lambda x: f"{x}. {ch_map.get(x, '')}"
-    )
+    # Enkel slider med bara siffror (exkluderar kapitelnamn-logiken)
+    new_chapter = st.slider("Chapter", 1, 114, st.session_state.chapter)
     
     _, _, total_verses = get_chapter_info(new_chapter)
 
-    # 2. Beräkna standardvärde för vers-slidern
     if new_chapter != st.session_state.chapter:
         default_range = (1, total_verses)
     else:
-        # Säkerställ att vi inte är utanför intervallet
-        curr_start = min(st.session_state.start_v, total_verses)
-        curr_end = min(st.session_state.end_v, total_verses)
-        default_range = (curr_start, curr_end)
+        default_range = (st.session_state.start_v, min(st.session_state.end_v, total_verses))
 
-    # 3. Vers-slider (VIKTIGT: nyckel baserad på kapitel för att undvika krasch)
+    # Vers-slider med unik key för att undvika krasch vid kapitelbyte
     verse_range = st.slider(
-        "Verses", 
-        1, total_verses, 
-        default_range,
-        key=f"v_slider_{new_chapter}" 
+        "Verses", 1, total_verses, default_range,
+        key=f"v_slider_{new_chapter}"
     )
 
     if st.button("Load", type="primary", use_container_width=True):
@@ -163,10 +155,9 @@ def open_settings():
         st.session_state.card_index = 0
         st.rerun()
 
-# --- 6. RENDER ---
-# (Hämta data baserat på inställningar)
-surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
+# --- 6. DATA PROCESSING & RENDER ---
 verses_data = fetch_verses_data(st.session_state.chapter)
+surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
 selected_data = verses_data[st.session_state.start_v - 1 : st.session_state.end_v]
 
 if selected_data:
@@ -181,24 +172,29 @@ if selected_data:
     font_size, line_height = calculate_text_settings(raw_text)
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
 
-    # UI: Progress Bar
+    # 1. Progress Bar
     st.markdown(f'<div style="width:100%; height:2px; background:#f0f0f0;"><div style="width:{progress_pct}%; height:100%; background:#2E8B57;"></div></div>', unsafe_allow_html=True)
 
-    # UI: Header
+    # 2. Header (hc1: Juz, hc2: Namn, hc3: Vers)
     st.markdown('<div class="header-wrapper">', unsafe_allow_html=True)
-    hc1, hc2, hc3 = st.columns([1, 4, 1])
-    with hc2:
-        header_label = f"Juz {juz} | {surah_en} | {surah_ar} | #{verse_num}"
-        if st.button(header_label, use_container_width=True):
+    hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
+    with hc1: 
+        st.markdown(f'<div style="text-align:center;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
+    with hc2: 
+        if st.button(f"{surah_en} | {surah_ar}", use_container_width=True):
             open_settings()
+    with hc3: 
+        st.markdown(f'<div style="text-align:center;"><span class="meta-tag">#{verse_num}</span></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # UI: Main Card
+    # 3. Main Card
     c_left, c_center, c_right = st.columns([1, 8, 1])
+    
     with c_left:
         if st.button("❮", key="prev") and st.session_state.card_index > 0:
             st.session_state.card_index -= 1
             st.rerun()
+
     with c_center:
         st.markdown(f"""
         <div style="height: 80vh; display: flex; align-items: center; justify-content: center; overflow-y: auto;">
@@ -207,10 +203,11 @@ if selected_data:
             </div>
         </div>
         """, unsafe_allow_html=True)
+
     with c_right:
         if st.button("❯", key="next") and st.session_state.card_index < len(selected_data) - 1:
             st.session_state.card_index += 1
             st.rerun()
 else:
-    if st.button("No verses found. Open Settings."):
+    if st.button("Öppna inställningar", use_container_width=True):
         open_settings()
