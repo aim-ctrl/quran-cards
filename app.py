@@ -39,11 +39,11 @@ def calculate_text_settings(text):
     clean_len = get_clean_length(text)
     
     # --- Inställningar ---
-    max_size = 9.0   # Största tillåtna storlek (vw)
-    min_size = 5.0   # Minsta tillåtna storlek (vw) - Läsbarhetsgräns
+    max_size = 8.0   # Största tillåtna storlek (vw)
+    min_size = 1.0   # Minsta tillåtna storlek (vw) - Läsbarhetsgräns
     
-    short_threshold = 50   # Teckengräns för "kort text"
-    long_threshold = 300   # Teckengräns där vi når minsta storlek
+    short_threshold = 15   # Teckengräns för "kort text"
+    long_threshold = 699   # Teckengräns där vi når minsta storlek
     
     # --- Logik ---
     
