@@ -111,7 +111,7 @@ st.markdown("""
         text-align: center;
         color: #000;
         width: 100%;
-        padding: 250px 10px;
+        padding: 0px 10px;
     }
     
     .header-wrapper {
