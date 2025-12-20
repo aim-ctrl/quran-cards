@@ -182,7 +182,7 @@ if selected_data:
     st.markdown('<div class="header-wrapper">', unsafe_allow_html=True)
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     with hc2: 
-        if st.button(f"Juz {juz} | Chapter {chapter} | {surah_en} | {surah_ar} | Verse {verse_num}", use_container_width=True):
+        if st.button(f"Juz {juz} | Chapter {st.session_state.chapter} | {surah_en} | {surah_ar} | Verse {verse_num}", use_container_width=True):
             open_settings()
     st.markdown('</div>', unsafe_allow_html=True)
 
