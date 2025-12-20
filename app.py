@@ -11,12 +11,22 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Initiera session state
 if 'chapter' not in st.session_state: st.session_state.chapter = 1
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7 
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
 
 # --- 2. LOGIC & HELPER FUNCTIONS ---
+
+@st.cache_data(show_spinner=False)
+def get_chapters_list():
+    """Hämtar namn på alla kapitel för slidern."""
+    try:
+        resp = requests.get("https://api.quran.com/api/v4/chapters").json()
+        return [f"{c['id']}. {c['name_simple']}" for c in resp['chapters']]
+    except:
+        return [f"Chapter {i}" for i in range(1, 115)]
 
 @st.cache_data(show_spinner=False)
 def get_chapter_info(chapter_id):
@@ -32,11 +42,9 @@ def fetch_verses_data(chapter_num):
     except: return []
 
 def get_clean_length(text):
-    """Räknar endast bas-tecken (ignorerar diakritika) för korrekt visuell skalning."""
     return len([c for c in text if unicodedata.category(c) != 'Mn'])
 
 def calculate_text_settings(text):
-    """Beräknar fontstorlek och radhöjd baserat på rensad textlängd."""
     clean_len = get_clean_length(text)
     if clean_len < 40: return "8.5vw", "1.6"
     elif clean_len < 80: return "7vw", "1.7"
@@ -48,33 +56,24 @@ def calculate_text_settings(text):
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
-    
     .stApp { background-color: #ffffff; }
     .block-container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
     header, footer, [data-testid="stSidebar"] { display: none !important; }
-    div[data-testid="stVerticalBlock"] { gap: 0rem !important; }
-
-    /* Knapp-styling för titeln */
+    
+    /* Header-knapp (Sammanslagen info) */
     .stButton > button {
-        min-height: 0px !important;
-        height: auto !important;
-        padding: 4px 0px !important;
-        line-height: 1.2 !important;
         border: none !important;
         background: transparent !important;
         color: #2E8B57 !important;
         font-weight: 700 !important;
+        font-size: 1.1rem !important;
     }
 
-    /* DÖLJ PIL-KNAPPARNA MEN BEHÅLL DEM I DOM:en */
-    /* Vi gör dem genomskinliga och tar bort deras bredd så de inte stör layouten */
+    /* Dölj sidopilar men behåll för JS */
     div[data-testid="column"]:nth-of-type(1) button, 
     div[data-testid="column"]:nth-of-type(3) button {
         opacity: 0 !important;
         width: 0px !important;
-        height: 0px !important;
-        padding: 0 !important;
-        margin: 0 !important;
         pointer-events: none !important;
     }
 
@@ -84,22 +83,10 @@ st.markdown("""
         text-align: center;
         color: #000;
         width: 100%;
-        padding: 0 15px;
-    }
-
-    .meta-tag {
-        font-family: sans-serif; 
-        font-size: 0.75rem;
-        color: #ffffff; 
-        background: #4287f5; 
-        padding: 3px 8px;
-        border-radius: 12px;
+        padding: 0 20px;
     }
     
-    .header-wrapper {
-        padding-top: 20px;
-        padding-bottom: 5px;
-    }
+    .header-wrapper { padding-top: 25px; padding-bottom: 5px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -112,30 +99,23 @@ def add_swipe_support():
         let touchendX = 0;
 
         function handleSwipe() {
-            const diff = touchendX - touchstartX;
-            const threshold = 50; // Känslighet för svep
+            // BLOCKERA SWIPE OM DIALOG ÄR ÖPPEN
+            if (doc.querySelector('div[data-testid="stDialog"]')) return;
 
-            if (Math.abs(diff) > threshold) {
+            const diff = touchendX - touchstartX;
+            if (Math.abs(diff) > 70) {
                 if (diff > 0) {
-                    // Svep höger -> Föregående
                     const prevBtn = Array.from(doc.querySelectorAll('button')).find(el => el.innerText.includes('❮'));
                     if (prevBtn) prevBtn.click();
                 } else {
-                    // Svep vänster -> Nästa
                     const nextBtn = Array.from(doc.querySelectorAll('button')).find(el => el.innerText.includes('❯'));
                     if (nextBtn) nextBtn.click();
                 }
             }
         }
 
-        doc.addEventListener('touchstart', e => {
-            touchstartX = e.changedTouches[0].screenX;
-        }, false);
-
-        doc.addEventListener('touchend', e => {
-            touchendX = e.changedTouches[0].screenX;
-            handleSwipe();
-        }, false);
+        doc.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; }, false);
+        doc.addEventListener('touchend', e => { touchendX = e.changedTouches[0].screenX; handleSwipe(); }, false);
     </script>
     """
     components.html(swipe_js, height=0, width=0)
@@ -145,9 +125,15 @@ add_swipe_support()
 # --- 5. DIALOG (SETTINGS) ---
 @st.dialog("Settings")
 def open_settings():
-    new_chapter = st.slider("Chapter", 1, 114, st.session_state.chapter)
+    all_chapters = get_chapters_list()
+    # Hitta index för nuvarande kapitel
+    current_idx = st.session_state.chapter - 1
+    
+    selected_chapter_str = st.selectbox("Select Chapter", all_chapters, index=current_idx)
+    new_chapter = int(selected_chapter_str.split(".")[0])
+    
     _, _, total_verses = get_chapter_info(new_chapter)
-
+    
     if new_chapter != st.session_state.chapter:
         default_range = (1, total_verses)
     else:
@@ -162,15 +148,12 @@ def open_settings():
         st.session_state.card_index = 0
         st.rerun()
 
-# --- 6. DATA PROCESSING & RENDER ---
+# --- 6. RENDER ---
 verses_data = fetch_verses_data(st.session_state.chapter)
 surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
 selected_data = verses_data[st.session_state.start_v - 1 : st.session_state.end_v]
 
 if selected_data:
-    if st.session_state.card_index >= len(selected_data):
-        st.session_state.card_index = 0
-        
     current_verse = selected_data[st.session_state.card_index]
     raw_text = current_verse['text_uthmani']
     juz = current_verse['juz_number']
@@ -179,45 +162,37 @@ if selected_data:
     font_size, line_height = calculate_text_settings(raw_text)
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
 
-    # PROGRESS BAR
-    st.markdown(f"""
-        <div style="width:100%; height:2px; background:#f0f0f0;">
-            <div style="width:{progress_pct}%; height:100%; background:#2E8B57; transition: width 0.3s ease;"></div>
-        </div>
-    """, unsafe_allow_html=True)
+    # PROGRESS
+    st.markdown(f'<div style="width:100%; height:2px; background:#f0f0f0;"><div style="width:{progress_pct}%; height:100%; background:#2E8B57;"></div></div>', unsafe_allow_html=True)
 
-    # HEADER
+    # HEADER (Sammanslagen info)
     st.markdown('<div class="header-wrapper">', unsafe_allow_html=True)
-    hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
-    with hc1: st.markdown(f'<div style="text-align:center;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
-    with hc2: 
-        if st.button(f"{surah_en} | {surah_ar}", use_container_width=True): open_settings()
-    with hc3: st.markdown(f'<div style="text-align:center;"><span class="meta-tag">#{verse_num}</span></div>', unsafe_allow_html=True)
+    header_text = f"Juz {juz} | {surah_en} | {surah_ar} | #{verse_num}"
+    if st.button(header_text, use_container_width=True):
+        open_settings()
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # MAIN CARD (Inklusive dolda knappar för JS-stöd)
-    c_left, c_center, c_right = st.columns([0.1, 9.8, 0.1])
-    
-    with c_left:
-        # Denna knapp finns men syns inte pga CSS
-        if st.button("❮", key="prev") and st.session_state.card_index > 0:
-            st.session_state.card_index -= 1
-            st.rerun()
-
-    with c_center:
+    # MAIN CARD
+    c1, c2, c3 = st.columns([0.1, 9.8, 0.1])
+    with c1: st.button("❮", key="prev") # Dold via CSS
+    with c2:
         st.markdown(f"""
-        <div style="height: 80vh; display: flex; align-items: center; justify-content: center;">
+        <div style="height: 75vh; display: flex; align-items: center; justify-content: center;">
             <div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
                 {raw_text}
             </div>
         </div>
         """, unsafe_allow_html=True)
+    with c3: st.button("❯", key="next") # Dold via CSS
 
-    with c_right:
-        # Denna knapp finns men syns inte pga CSS
-        if st.button("❯", key="next") and st.session_state.card_index < len(selected_data) - 1:
-            st.session_state.card_index += 1
-            st.rerun()
-else:
-    if st.button("Öppna inställningar", use_container_width=True):
-        open_settings()
+    # Logik för knappar (körs via JS-klick)
+    if st.session_state.get('prev_clicked'): # Om man vill ha manuell kontroll
+        pass 
+
+    # Hantering av index-ändring vid klick
+    if st.session_state.card_index > 0 and st.session_state.get("prev"):
+        st.session_state.card_index -= 1
+        st.rerun()
+    if st.session_state.card_index < len(selected_data) - 1 and st.session_state.get("next"):
+        st.session_state.card_index += 1
+        st.rerun()
