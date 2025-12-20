@@ -59,12 +59,12 @@ st.markdown("""
     .stButton > button {
         min-height: 0px !important;
         height: auto !important;
-        padding: 4px 0px !important;
-        line-height: 1.2 !important;
+        padding: 0px 0px !important;
+        line-height: 1.0 !important;
         border: none !important;
         background: transparent !important;
         color: #2E8B57 !important;
-        font-weight: 700 !important;
+        font-weight: 900 !important;
     }
 
     /* Sidopilar (Dolda men aktiva för Swipe-skriptet) */
