@@ -39,7 +39,7 @@ def calculate_text_settings(text):
     clean_len = get_clean_length(text)
     
     # Beräkna storleken baserat på din formel: (7.5 - 0.01 * längd)
-    size_value = 7.5 - (0.01 * clean_len)
+    size_value = 7.5 - (0.02 * clean_len)
     
     # Returnera det beräknade värdet med "vw" och den konstanta höjden "2.0"
     return f"{size_value}vw", "1.85"
