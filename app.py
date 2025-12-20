@@ -93,7 +93,7 @@ st.markdown("""
     .meta-tag {
         font-family: sans-serif; 
         font-size: 0.55rem;
-        color: #888; 
+        color: #ffffff; 
         background: #4287f5; 
         padding: 3px 3px;
         border-radius: 12px;
@@ -108,10 +108,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 4. DIALOG (SETTINGS) ---
-@st.dialog("Inställningar")
+@st.dialog("Settings")
 def open_settings():
-    st.markdown("### Välj Kapitel")
-    new_chapter = st.slider("Kapitel", 1, 114, st.session_state.chapter)
+    
+    new_chapter = st.slider("Chapter", 1, 114, st.session_state.chapter)
     
     # Hämta info för det kapitel som är valt i slidern just nu
     _, _, total_verses = get_chapter_info(new_chapter)
@@ -123,9 +123,9 @@ def open_settings():
     else:
         default_range = (st.session_state.start_v, min(st.session_state.end_v, total_verses))
 
-    st.markdown("### Välj Versintervall")
+    
     verse_range = st.slider(
-        "Verser", 
+        "Verses", 
         1, total_verses, 
         default_range
     )
@@ -164,7 +164,7 @@ if selected_data:
 
     # 2. HEADER MED PADDING
     st.markdown('<div class="header-wrapper">', unsafe_allow_html=True)
-    hc1, hc2, hc3 = st.columns([1, 10, 1], vertical_alignment="center")
+    hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     with hc1: 
         st.markdown(f'<div style="text-align:top;"><span class="meta-tag">Juz {juz}</span></div>', unsafe_allow_html=True)
     with hc2: 
