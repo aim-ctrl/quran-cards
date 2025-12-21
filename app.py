@@ -76,15 +76,14 @@ def apply_hifz_coloring(text):
             
     return " ".join(colored_words)
 
-def apply_madd_coloring(text):
-    """Färgar madd-tecknet (~) rosa och gör det tjockare."""
+def prepare_overlay_text(text):
+    """
+    Förbereder texten för överlagret (Lager 2).
+    Här markerar vi Madd-tecknet med en speciell klass.
+    """
     madd_char = '\u0653'
-    color = "#FF1493" # DeepPink
-    
-    # Här lägger vi till font-weight: bold och font-size: 1.3em
-    # position: relative används för att säkerställa att tecknet inte hoppar konstigt i höjdled
-    replacement = f'<span style="color: {color}; font-weight: 900; font-size: 1.3em; line-height: 0;">{madd_char}</span>'
-    
+    # Vi lägger till en klass "madd-highlight" runt tecknet
+    replacement = f'<span class="madd-highlight">{madd_char}</span>'
     return text.replace(madd_char, replacement)
 
 # --- 3. CSS STYLING ---
@@ -119,13 +118,48 @@ st.markdown("""
         z-index: 10 !important;
     }
 
-    .arabic-text {
-        font-family: 'Scheherazade New', serif;
+    /* CONTAINER FÖR LAGREN */
+    .quran-container {
+        position: relative;
         direction: rtl;
         text-align: center;
-        color: #000;
         width: 100%;
-        padding: 0px 0px;
+        /* Font-inställningar sätts här för att ärvas identiskt av båda lagren */
+        font-family: 'Scheherazade New', serif;
+        color: #000;
+    }
+
+    /* LAGER 1: BOTTEN (Den faktiska texten) */
+    .layer-base {
+        position: relative;
+        z-index: 1;
+        color: black;
+        pointer-events: auto;
+    }
+
+    /* LAGER 2: TOPPEN (Overlay för färg) */
+    .layer-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 2;
+        pointer-events: none; /* Klick går igenom till texten under */
+        color: transparent; /* All text osynlig som standard */
+    }
+
+    /* Tvinga allt i overlay att vara transparent först */
+    .layer-overlay * {
+        color: transparent !important;
+    }
+
+    /* Tänd bara Madd-tecknet i overlayn */
+    .layer-overlay .madd-highlight {
+        color: #FF1493 !important; /* DeepPink */
+        /* Vi kan lägga till en text-shadow för att göra den lite "fetare" utan att ändra layout */
+        text-shadow: 0 0 1px #FF1493; 
+        opacity: 0.9;
     }
     
     .link-hint {
@@ -227,32 +261,64 @@ if selected_data:
     font_size, line_height = calculate_text_settings(raw_text)
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
 
-    # 1. PREPARERA HUVUDTEXTEN
-    display_text = raw_text
+    # --- FÖRBERED TEXTEN ---
     
+    # Bas-text (alltid svart)
+    # Om Hifz är på, applicerar vi det på bastexten. 
+    # Overlayn kommer vara transparent så Hifz-färgerna syns igenom från basen.
+    text_for_base = raw_text
     if st.session_state.hifz_colors:
-        display_text = apply_hifz_coloring(display_text)
-        
+        text_for_base = apply_hifz_coloring(raw_text)
+    
+    # Overlay-text (för Madd)
+    # Vi tar samma grundtext så strukturen är identisk
+    text_for_overlay = text_for_base 
+    
     if st.session_state.madd_colors:
-        display_text = apply_madd_coloring(display_text)
-
-    # 2. HANTERA KOPPLINGAR (ROBT) - INLINE
+        # Vi modifierar overlay-strängen för att lägga till klasser runt madd
+        # OBS: Vi gör detta på texten som redan har Hifz-span (om den har det)
+        # Det fungerar eftersom replace letar efter tecknet \u0653 oavsett om det är i en span eller ej.
+        text_for_overlay = prepare_overlay_text(text_for_overlay)
+    
+    # Hantera Hints (Robt)
+    # Hints lägger vi bara utanför själva "dubbel-lagret" eller i båda? 
+    # Enklast: Lägg dem i HTML-strukturen runt omkring eller hantera separat.
+    # För enkelhetens skull, låt oss bygga hela HTML-blocket med hints separat.
+    
     prev_span = ""
     next_span = ""
-    
     if st.session_state.show_links:
         if st.session_state.card_index > 0:
-            prev_verse_text = selected_data[st.session_state.card_index - 1]['text_uthmani']
-            last_word = prev_verse_text.split(" ")[-1]
-            prev_span = f'<span class="link-hint">{last_word}</span> '
-        
+            p_txt = selected_data[st.session_state.card_index - 1]['text_uthmani']
+            prev_span = f'<span class="link-hint">{p_txt.split(" ")[-1]}</span> '
         if st.session_state.card_index < len(selected_data) - 1:
-            next_verse_text = selected_data[st.session_state.card_index + 1]['text_uthmani']
-            first_word = next_verse_text.split(" ")[0]
-            next_span = f' <span class="link-hint">{first_word}</span>'
+            n_txt = selected_data[st.session_state.card_index + 1]['text_uthmani']
+            next_span = f' <span class="link-hint">{n_txt.split(" ")[0]}</span>'
 
-    # Slå ihop allt till en rad
-    final_html_text = f"{prev_span}{display_text}{next_span}"
+    # --- HTML STRUKTUR MED OVERLAY ---
+    # Vi skapar en container som håller båda lagren.
+    # Hints läggs utanför overlay-logiken för att inte krångla till det, 
+    # de påverkas sällan av madd ändå.
+    
+    html_content = f"""
+<div style="position: fixed; top: 5vh; bottom: 0vh; left: 0; right: 0; width: 100%; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
+    <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
+        <div class="quran-container" style="font-size: {font_size}; line-height: {line_height};">
+            
+            {prev_span}
+            
+            <span style="position: relative; display: inline;">
+                <span class="layer-base">{text_for_base}</span>
+                
+                <span class="layer-overlay">{text_for_overlay}</span>
+            </span>
+
+            {next_span}
+
+        </div>
+    </div>
+</div>
+"""
 
     # 3. GUI RENDER
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
@@ -278,18 +344,6 @@ if selected_data:
             st.rerun()
 
     with c_center:
-        text_area_top = "5vh"    
-        text_area_bottom = "0vh" 
-
-        html_content = f"""
-<div style="position: fixed; top: {text_area_top}; bottom: {text_area_bottom}; left: 0; right: 0; width: 100%; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
-<div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
-<div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
-{final_html_text}
-</div>
-</div>
-</div>
-"""
         st.markdown(html_content, unsafe_allow_html=True)
 
     with c_right:
