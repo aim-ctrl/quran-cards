@@ -208,7 +208,7 @@ if selected_data:
     # Vi använder en container för layout, men CSS lyfter upp knappen överst
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     with hc2: 
-        if st.button(f"Juz {juz} | Chapter {st.session_state.chapter} | {surah_en} | {surah_ar} | Verse {verse_num} ({get_clean_length(raw_text)})", use_container_width=True):
+        if st.button(f"Juz {juz} | Chapter {st.session_state.chapter} | {surah_en} | {surah_ar} | Verse {verse_num}", use_container_width=True):
             open_settings()
 
     # 4. MAIN CARD (Texten, Z-index 1)
