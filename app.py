@@ -37,7 +37,7 @@ def get_clean_length(text):
 def calculate_text_settings(text):
     clean_len = get_clean_length(text)
     
-    max_size = 8.0
+    max_size = 6.0
     min_size = 1.0
     
     short_threshold = 15
@@ -48,12 +48,12 @@ def calculate_text_settings(text):
         line_height = "1.8"
     elif clean_len >= long_threshold:
         final_size = min_size
-        line_height = "2.2"
+        line_height = "1.7"
     else:
-        progress = (clean_len - short_threshold) / (long_threshold - short_threshold)
+        progr = (clean_len - short_threshold) / (long_threshold - short_threshold)
         size_diff = max_size - min_size
-        final_size = max_size - (progress * size_diff)
-        line_height_val = 1.8 + (progress * 0.4)
+        final_size = max_size - (progr * size_diff)
+        line_height_val = 1.8 - (progr * 0.1)
         line_height = f"{line_height_val:.2f}"
 
     return f"{final_size:.2f}vw", line_height
