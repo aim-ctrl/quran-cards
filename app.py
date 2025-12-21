@@ -76,9 +76,17 @@ def apply_hifz_coloring(text):
     return " ".join(colored_words)
 
 def prepare_overlay_text(text):
-    madd_char = '\u0653'
-    replacement = f'<span class="madd-highlight">{madd_char}</span>'
-    return text.replace(madd_char, replacement)
+    # Unicode för Maddah (~). 
+    # Vi söker efter både standard Maddah (0653) och Small High Madda (06E4) för säkerhets skull.
+    madd_chars = ['\u0653', '\u06E4']
+    
+    processed_text = text
+    for char in madd_chars:
+        # Ersätt tecknet med en span som har klassen .madd-highlight
+        replacement = f'<span class="madd-highlight">{char}</span>'
+        processed_text = processed_text.replace(char, replacement)
+        
+    return processed_text
 
 # --- 3. CSS STYLING ---
 st.markdown("""
@@ -126,8 +134,7 @@ st.markdown("""
     .layer-base {
         position: relative;
         z-index: 1;
-        color: black;
-        pointer-events: auto;
+        color: black; /* Svart text i botten */
     }
 
     /* LAGER 2: TOPPEN (Overlay för färg) */
@@ -138,19 +145,27 @@ st.markdown("""
         width: 100%;
         height: 100%;
         z-index: 2;
-        pointer-events: none; 
-        color: transparent; 
+        pointer-events: none; /* Klick går igenom */
+        color: transparent;   /* Hela texten osynlig */
     }
 
-    .layer-overlay * {
+    /* Tvinga transparens på allt i overlay, utom vår highlight */
+    .layer-overlay span:not(.madd-highlight) {
         color: transparent !important;
     }
 
-    /* Tänd bara Madd-tecknet i overlayn */
+    /* VIKTIGT: Madd-tecknet styling */
     .layer-overlay .madd-highlight {
-        color: #FF1493 !important; 
-        text-shadow: 0 0 0.5px #FF1493; 
-        opacity: 0.9;
+        color: transparent; /* Själva tecknet transparent */
+        
+        /* TRICKET: Vi använder text-shadow för att rita tecknet */
+        /* 0px offset, 0px blur, och färgen DeepPink */
+        text-shadow: 0 0 0 #FF1493; 
+        
+        /* Stroke kan hjälpa i vissa webbläsare att göra det fetare */
+        -webkit-text-stroke: 1px #FF1493;
+        
+        opacity: 1 !important;
     }
     
     .link-hint {
@@ -252,12 +267,13 @@ if selected_data:
     font_size, line_height = calculate_text_settings(raw_text)
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
 
-    # Förbered text för baslager (alltid svart, ev. Hifz-färg)
+    # Förbered text för baslager
     text_for_base = raw_text
     if st.session_state.hifz_colors:
         text_for_base = apply_hifz_coloring(raw_text)
     
-    # Förbered text för overlay (Endast Madd ska synas)
+    # Förbered text för overlay
+    # Vi utgår från samma text så att bokstäverna hamnar på EXAKT samma plats
     text_for_overlay = text_for_base 
     if st.session_state.madd_colors:
         text_for_overlay = prepare_overlay_text(text_for_overlay)
@@ -272,13 +288,13 @@ if selected_data:
             n_txt = selected_data[st.session_state.card_index + 1]['text_uthmani']
             next_span = f' <span class="link-hint">{n_txt.split(" ")[0]}</span>'
 
-    # OBS: INGEN INDENTERING I HTML-STRÄNGEN NEDAN FÖR ATT UNDVIKA ATT DEN VISAS SOM KOD
+    # HTML - Ingen indentering!
     html_content = f"""
 <div style="position: fixed; top: 5vh; bottom: 0vh; left: 0; right: 0; width: 100%; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
 <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
 <div class="quran-container" style="font-size: {font_size}; line-height: {line_height};">
 {prev_span}
-<span style="position: relative; display: inline;">
+<span style="position: relative; display: inline-block;">
 <span class="layer-base">{text_for_base}</span>
 <span class="layer-overlay">{text_for_overlay}</span>
 </span>
