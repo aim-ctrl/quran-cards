@@ -212,10 +212,10 @@ if selected_data:
             open_settings()
 
     # 4. MAIN CARD (Texten, Z-index 1)
-    c_left, c_center, c_right = st.columns([1, 80, 1])
+    c_left, c_center, c_right = st.columns([1, 800, 1])
     
     with c_left:
-        if st.button("❮", key="prev") and st.session_state.card_index > 0:
+        if st.button(" ", key="prev") and st.session_state.card_index > 0:
             st.session_state.card_index -= 1
             st.rerun()
 
@@ -247,7 +247,7 @@ if selected_data:
         """, unsafe_allow_html=True)
 
     with c_right:
-        if st.button("❯", key="next") and st.session_state.card_index < len(selected_data) - 1:
+        if st.button(" ", key="next") and st.session_state.card_index < len(selected_data) - 1:
             st.session_state.card_index += 1
             st.rerun()
 else:
