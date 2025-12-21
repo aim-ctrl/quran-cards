@@ -15,7 +15,10 @@ if 'chapter' not in st.session_state: st.session_state.chapter = 1
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7 
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
+# State för Hifz-färger
 if 'hifz_colors' not in st.session_state: st.session_state.hifz_colors = False
+# State för Madd-färger (NY)
+if 'madd_colors' not in st.session_state: st.session_state.madd_colors = False
 if 'show_links' not in st.session_state: st.session_state.show_links = False
 
 # --- 2. LOGIC & HELPER FUNCTIONS ---
@@ -61,9 +64,9 @@ def calculate_text_settings(text):
     return f"{final_size:.2f}vw", line_height
 
 def apply_hifz_coloring(text):
+    """Färgar första bokstaven i varje ord orange."""
     words = text.split(" ")
     colored_words = []
-    # Färg: En mjuk orange/rostfärg för första bokstaven
     highlight_color = "#D35400" 
     
     for word in words:
@@ -74,6 +77,18 @@ def apply_hifz_coloring(text):
             colored_words.append(word)
             
     return " ".join(colored_words)
+
+def apply_madd_coloring(text):
+    """Färgar madd-tecknet (~) rosa."""
+    # Unicode för Arabic Maddah Above är \u0653
+    madd_char = '\u0653'
+    # Rosa färg (DeepPink)
+    color = "#FF1493"
+    
+    # Vi ersätter tecknet med en span som har färgen
+    replacement = f'<span style="color: {color};">{madd_char}</span>'
+    
+    return text.replace(madd_char, replacement)
 
 # --- 3. CSS STYLING ---
 st.markdown("""
@@ -116,10 +131,9 @@ st.markdown("""
         padding: 0px 0px;
     }
     
-    /* UPPDATERAD CSS: Mindre text för hintarna */
     .link-hint {
-        color: #C0C0C0; /* Ljusgrå */
-        font-size: 0.60em; /* Ca 60% av versens storlek */
+        color: #C0C0C0; 
+        font-size: 0.60em; 
         opacity: 0.8;
         font-weight: normal;
     }
@@ -181,7 +195,12 @@ def open_settings():
         key=f"v_slider_{new_chapter}"
     )
     
-    hifz_colors = st.toggle("Hifz Colors (Start Letters)", value=st.session_state.hifz_colors)
+    col_sett_1, col_sett_2 = st.columns(2)
+    with col_sett_1:
+        hifz_colors = st.toggle("Hifz Colors (Start Letters)", value=st.session_state.hifz_colors)
+    with col_sett_2:
+        madd_colors = st.toggle("Madd Colors (Pink)", value=st.session_state.madd_colors)
+        
     show_links = st.toggle("Connection Hints (Robt)", value=st.session_state.show_links)
 
     if st.button("Load", type="primary", use_container_width=True):
@@ -190,6 +209,7 @@ def open_settings():
         st.session_state.end_v = verse_range[1]
         st.session_state.card_index = 0
         st.session_state.hifz_colors = hifz_colors
+        st.session_state.madd_colors = madd_colors
         st.session_state.show_links = show_links
         st.rerun()
 
@@ -212,8 +232,14 @@ if selected_data:
 
     # 1. PREPARERA HUVUDTEXTEN
     display_text = raw_text
+    
+    # Applicera Hifz-färger först (om påslaget)
     if st.session_state.hifz_colors:
-        display_text = apply_hifz_coloring(raw_text)
+        display_text = apply_hifz_coloring(display_text)
+        
+    # Applicera Madd-färger därefter (om påslaget) - detta lägger span inuti span vid behov
+    if st.session_state.madd_colors:
+        display_text = apply_madd_coloring(display_text)
 
     # 2. HANTERA KOPPLINGAR (ROBT) - INLINE
     prev_span = ""
@@ -223,13 +249,11 @@ if selected_data:
         if st.session_state.card_index > 0:
             prev_verse_text = selected_data[st.session_state.card_index - 1]['text_uthmani']
             last_word = prev_verse_text.split(" ")[-1]
-            # Prickar borttagna, bara ordet kvar
             prev_span = f'<span class="link-hint">{last_word}</span> '
         
         if st.session_state.card_index < len(selected_data) - 1:
             next_verse_text = selected_data[st.session_state.card_index + 1]['text_uthmani']
             first_word = next_verse_text.split(" ")[0]
-            # Prickar borttagna, bara ordet kvar
             next_span = f' <span class="link-hint">{first_word}</span>'
 
     # Slå ihop allt till en rad
@@ -262,7 +286,6 @@ if selected_data:
         text_area_top = "5vh"    
         text_area_bottom = "0vh" 
 
-        # VIKTIGT: Ingen indentering i HTML-strängen
         html_content = f"""
 <div style="position: fixed; top: {text_area_top}; bottom: {text_area_bottom}; left: 0; right: 0; width: 100%; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
 <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
