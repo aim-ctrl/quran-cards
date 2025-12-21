@@ -15,9 +15,7 @@ if 'chapter' not in st.session_state: st.session_state.chapter = 1
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7 
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
-# State för Hifz-färger
 if 'hifz_colors' not in st.session_state: st.session_state.hifz_colors = False
-# State för Madd-färger (NY)
 if 'madd_colors' not in st.session_state: st.session_state.madd_colors = False
 if 'show_links' not in st.session_state: st.session_state.show_links = False
 
@@ -79,14 +77,13 @@ def apply_hifz_coloring(text):
     return " ".join(colored_words)
 
 def apply_madd_coloring(text):
-    """Färgar madd-tecknet (~) rosa."""
-    # Unicode för Arabic Maddah Above är \u0653
+    """Färgar madd-tecknet (~) rosa och gör det tjockare."""
     madd_char = '\u0653'
-    # Rosa färg (DeepPink)
-    color = "#FF1493"
+    color = "#FF1493" # DeepPink
     
-    # Vi ersätter tecknet med en span som har färgen
-    replacement = f'<span style="color: {color};">{madd_char}</span>'
+    # Här lägger vi till font-weight: bold och font-size: 1.3em
+    # position: relative används för att säkerställa att tecknet inte hoppar konstigt i höjdled
+    replacement = f'<span style="color: {color}; font-weight: 900; font-size: 1.3em; line-height: 0;">{madd_char}</span>'
     
     return text.replace(madd_char, replacement)
 
@@ -233,11 +230,9 @@ if selected_data:
     # 1. PREPARERA HUVUDTEXTEN
     display_text = raw_text
     
-    # Applicera Hifz-färger först (om påslaget)
     if st.session_state.hifz_colors:
         display_text = apply_hifz_coloring(display_text)
         
-    # Applicera Madd-färger därefter (om påslaget) - detta lägger span inuti span vid behov
     if st.session_state.madd_colors:
         display_text = apply_madd_coloring(display_text)
 
