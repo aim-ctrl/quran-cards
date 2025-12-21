@@ -16,7 +16,6 @@ if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7 
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
 if 'hifz_colors' not in st.session_state: st.session_state.hifz_colors = False
-# NY STATE: Link Hints (Robt)
 if 'show_links' not in st.session_state: st.session_state.show_links = False
 
 # --- 2. LOGIC & HELPER FUNCTIONS ---
@@ -64,6 +63,7 @@ def calculate_text_settings(text):
 def apply_hifz_coloring(text):
     words = text.split(" ")
     colored_words = []
+    # Färg: En mjuk orange/rostfärg
     highlight_color = "#D35400" 
     
     for word in words:
@@ -116,14 +116,12 @@ st.markdown("""
         padding: 0px 0px;
     }
     
-    /* NY CSS: Länkhintar (Robt) */
+    /* Stil för länk-hintarna (Robt) */
     .link-hint {
         color: #B0B0B0; /* Ljusgrå */
-        font-size: 0.5em; /* Mycket mindre än huvudtexten */
-        display: inline-block;
-        margin: 0 10px;
-        vertical-align: middle;
-        font-family: 'Scheherazade New', serif;
+        font-size: 0.6em; /* Mindre text */
+        margin: 0 15px;
+        opacity: 0.7;
     }
     
     .top-curtain {
@@ -183,9 +181,7 @@ def open_settings():
         key=f"v_slider_{new_chapter}"
     )
     
-    # Toggles
     hifz_colors = st.toggle("Hifz Colors (Start Letters)", value=st.session_state.hifz_colors)
-    # NY TOGGLE
     show_links = st.toggle("Connection Hints (Robt)", value=st.session_state.show_links)
 
     if st.button("Load", type="primary", use_container_width=True):
@@ -224,17 +220,15 @@ if selected_data:
     next_html = ""
     
     if st.session_state.show_links:
-        # Hämta förra versens sista ord
         if st.session_state.card_index > 0:
             prev_verse_text = selected_data[st.session_state.card_index - 1]['text_uthmani']
             last_word = prev_verse_text.split(" ")[-1]
-            prev_html = f'<span class="link-hint">... {last_word}</span><br>'
+            prev_html = f'<div class="link-hint">... {last_word}</div>'
         
-        # Hämta nästa versens första ord
         if st.session_state.card_index < len(selected_data) - 1:
             next_verse_text = selected_data[st.session_state.card_index + 1]['text_uthmani']
             first_word = next_verse_text.split(" ")[0]
-            next_html = f'<br><span class="link-hint">{first_word} ...</span>'
+            next_html = f'<div class="link-hint">{first_word} ...</div>'
 
     # 3. GUI RENDER
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
@@ -263,16 +257,17 @@ if selected_data:
         text_area_top = "5vh"    
         text_area_bottom = "0vh" 
 
-        # Bygg hela HTML-blocket
+        # VIKTIGT: Hela denna sträng ligger längst till vänster (inget indrag)
+        # för att undvika att Streamlit tolkar det som kod.
         html_content = f"""
 <div style="position: fixed; top: {text_area_top}; bottom: {text_area_bottom}; left: 0; right: 0; width: 100%; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
-    <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
-        <div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
-            {prev_html}
-            {display_text}
-            {next_html}
-        </div>
-    </div>
+<div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
+<div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
+{prev_html}
+{display_text}
+{next_html}
+</div>
+</div>
 </div>
 """
         st.markdown(html_content, unsafe_allow_html=True)
