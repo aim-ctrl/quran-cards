@@ -63,7 +63,7 @@ def calculate_text_settings(text):
 def apply_hifz_coloring(text):
     words = text.split(" ")
     colored_words = []
-    # Färg: En mjuk orange/rostfärg
+    # Färg: En mjuk orange/rostfärg för första bokstaven
     highlight_color = "#D35400" 
     
     for word in words:
@@ -116,12 +116,12 @@ st.markdown("""
         padding: 0px 0px;
     }
     
-    /* Stil för länk-hintarna (Robt) */
+    /* UPPDATERAD CSS: Länk-hintarna ligger nu inline */
     .link-hint {
-        color: #B0B0B0; /* Ljusgrå */
-        font-size: 0.6em; /* Mindre text */
-        margin: 0 15px;
-        opacity: 0.7;
+        color: #C0C0C0; /* Ljusgrå färg som stör minimalt */
+        font-size: 0.65em; /* Lite mindre än huvudtexten */
+        opacity: 0.8;
+        font-weight: normal;
     }
     
     .top-curtain {
@@ -210,25 +210,30 @@ if selected_data:
     font_size, line_height = calculate_text_settings(raw_text)
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
 
-    # 1. PREPARERA TEXTEN
+    # 1. PREPARERA HUVUDTEXTEN
     display_text = raw_text
     if st.session_state.hifz_colors:
         display_text = apply_hifz_coloring(raw_text)
 
-    # 2. HANTERA KOPPLINGAR (ROBT)
-    prev_html = ""
-    next_html = ""
+    # 2. HANTERA KOPPLINGAR (ROBT) - INLINE
+    prev_span = ""
+    next_span = ""
     
     if st.session_state.show_links:
         if st.session_state.card_index > 0:
             prev_verse_text = selected_data[st.session_state.card_index - 1]['text_uthmani']
             last_word = prev_verse_text.split(" ")[-1]
-            prev_html = f'<div class="link-hint">... {last_word}</div>'
+            # Notera: span istället för div, och ett mellanslag efteråt
+            prev_span = f'<span class="link-hint">... {last_word}</span> '
         
         if st.session_state.card_index < len(selected_data) - 1:
             next_verse_text = selected_data[st.session_state.card_index + 1]['text_uthmani']
             first_word = next_verse_text.split(" ")[0]
-            next_html = f'<div class="link-hint">{first_word} ...</div>'
+            # Notera: span istället för div, och ett mellanslag innan
+            next_span = f' <span class="link-hint">{first_word} ...</span>'
+
+    # Slå ihop allt till en rad
+    final_html_text = f"{prev_span}{display_text}{next_span}"
 
     # 3. GUI RENDER
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
@@ -257,15 +262,12 @@ if selected_data:
         text_area_top = "5vh"    
         text_area_bottom = "0vh" 
 
-        # VIKTIGT: Hela denna sträng ligger längst till vänster (inget indrag)
-        # för att undvika att Streamlit tolkar det som kod.
+        # VIKTIGT: Ingen indentering i HTML-strängen
         html_content = f"""
 <div style="position: fixed; top: {text_area_top}; bottom: {text_area_bottom}; left: 0; right: 0; width: 100%; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
 <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
 <div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
-{prev_html}
-{display_text}
-{next_html}
+{final_html_text}
 </div>
 </div>
 </div>
