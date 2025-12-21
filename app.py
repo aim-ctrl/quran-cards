@@ -221,7 +221,7 @@ if selected_data:
 
     with c_center:
         # Här definierar vi textytan
-        text_area_top = "15vh"    
+        text_area_top = "12vh"    
         text_area_bottom = "10vh" 
 
         st.markdown(f"""
