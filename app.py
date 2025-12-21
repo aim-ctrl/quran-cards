@@ -110,7 +110,7 @@ st.markdown("""
         top: 0;
         left: 0;
         width: 100%;
-        height: 14vh; /* Justera denna om du vill ha mer/mindre vit yta i toppen */
+        height: 4vh; /* Justera denna om du vill ha mer/mindre vit yta i toppen */
         background: white;
         z-index: 100; /* Ligger över texten, men under progress/knapp */
     }
