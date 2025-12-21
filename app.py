@@ -212,7 +212,7 @@ if selected_data:
             open_settings()
 
     # 4. MAIN CARD (Texten, Z-index 1)
-    c_left, c_center, c_right = st.columns([1, 20, 1])
+    c_left, c_center, c_right = st.columns([1, 500, 1])
     
     with c_left:
         if st.button("❮", key="prev") and st.session_state.card_index > 0:
