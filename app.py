@@ -101,7 +101,7 @@ st.markdown("""
         text-align: center;
         color: #000;
         width: 100%;
-        padding: 0px 10px;
+        padding: 0px 0px;
     }
     
     /* En "gardin" som döljer texten när den scrollar upp bakom headern */
