@@ -222,7 +222,7 @@ if selected_data:
     with c_center:
         # Här definierar vi textytan
         text_area_top = "10vh"    
-        text_area_bottom = "10vh" 
+        text_area_bottom = "0vh" 
 
         st.markdown(f"""
         <div style="
