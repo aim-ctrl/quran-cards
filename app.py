@@ -15,8 +15,8 @@ if 'chapter' not in st.session_state: st.session_state.chapter = 1
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7 
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
-# Ny state för Hifz-läge
-if 'hifz_mode' not in st.session_state: st.session_state.hifz_mode = False
+# Ny state för färgläggning
+if 'hifz_colors' not in st.session_state: st.session_state.hifz_colors = False
 
 # --- 2. LOGIC & HELPER FUNCTIONS ---
 
@@ -29,7 +29,7 @@ def get_chapter_info(chapter_id):
 
 @st.cache_data(show_spinner=False)
 def fetch_verses_data(chapter_num):
-    # Tillbaka till original-URL (inga översättningar för att spara data/tid)
+    # Original URL (snabbare, ingen onödig data)
     url = f"https://api.quran.com/api/v4/verses/by_chapter/{chapter_num}?language=en&words=false&fields=text_uthmani,juz_number&per_page=1000"
     try: return requests.get(url).json()['verses']
     except: return []
@@ -61,6 +61,28 @@ def calculate_text_settings(text):
 
     return f"{final_size:.2f}vw", line_height
 
+# --- NY FUNKTION: Smart Hifz Färgläggning ---
+def apply_hifz_coloring(text):
+    """
+    Delar upp texten i ord och färgar första bokstaven i varje ord.
+    Detta skapar ett visuellt mönster som hjälper memorering utan att förstöra layouten.
+    """
+    words = text.split(" ")
+    colored_words = []
+    
+    # Färgval: En mjuk bränd orange/röd som syns bra men är vilsam för ögonen
+    highlight_color = "#D35400" 
+    
+    for word in words:
+        if word:
+            # Vi tar första tecknet och lägger i en span med färg
+            # Resten av ordet förblir svart (eller standardfärg)
+            colored_word = f'<span style="color: {highlight_color};">{word[0]}</span>{word[1:]}'
+            colored_words.append(colored_word)
+        else:
+            colored_words.append(word)
+            
+    return " ".join(colored_words)
 
 # --- 3. CSS STYLING ---
 st.markdown("""
@@ -82,8 +104,6 @@ st.markdown("""
         background: transparent !important;
         color: #2E8B57 !important;
         font-weight: 900 !important;
-        
-        /* Denna ser till att knappen ligger ovanpå ALLT (även progress bar) */
         position: relative !important; 
         z-index: 9999 !important; 
     }
@@ -105,22 +125,6 @@ st.markdown("""
         color: #000;
         width: 100%;
         padding: 0px 0px;
-        transition: all 0.3s ease; /* Mjuk övergång för hifz */
-    }
-
-    /* --- NY CSS: Hifz Mode (Blur) --- */
-    /* Detta gör texten genomskinlig men ger den en skugga så den ser ut som ett moln */
-    .hifz-blur {
-        color: transparent !important;
-        text-shadow: 0 0 40px rgba(0,0,0,0.5);
-        cursor: pointer;
-        user-select: none;
-    }
-    
-    /* När man håller musen över eller trycker på texten blir den skarp */
-    .hifz-blur:hover, .hifz-blur:active {
-        color: black !important;
-        text-shadow: none;
     }
     
     /* En "gardin" som döljer texten när den scrollar upp bakom headern */
@@ -180,16 +184,16 @@ def open_settings():
         "Verses", 1, total_verses, default_range,
         key=f"v_slider_{new_chapter}"
     )
-
-    # NY INSTÄLLNING: Hifz Mode
-    hifz_on = st.toggle("Hifz Mode (Blur Text)", value=st.session_state.hifz_mode)
+    
+    # Toggle för Hifz-färg
+    hifz_colors = st.toggle("Hifz Colors (Markera start)", value=st.session_state.hifz_colors)
 
     if st.button("Load", type="primary", use_container_width=True):
         st.session_state.chapter = new_chapter
         st.session_state.start_v = verse_range[0]
         st.session_state.end_v = verse_range[1]
         st.session_state.card_index = 0
-        st.session_state.hifz_mode = hifz_on # Spara Hifz-valet
+        st.session_state.hifz_colors = hifz_colors
         st.rerun()
 
 # --- 6. RENDER ---
@@ -208,6 +212,11 @@ if selected_data:
     
     font_size, line_height = calculate_text_settings(raw_text)
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
+
+    # APPLICERA HIFZ-FÄRG OM VALT
+    display_text = raw_text
+    if st.session_state.hifz_colors:
+        display_text = apply_hifz_coloring(raw_text)
 
     # 1. VIT BAKGRUNDS-GARDIN (Z-index 100)
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
@@ -244,15 +253,13 @@ if selected_data:
         text_area_top = "5vh"    
         text_area_bottom = "0vh" 
 
-        # Bestäm om vi ska använda Hifz-klassen
-        blur_class = "hifz-blur" if st.session_state.hifz_mode else ""
-
-        # VIKTIGT: Ingen indentering i HTML-strängen för att undvika "DIV"-buggen
+        # VIKTIGT: Här skickar vi in display_text (som kan vara färgad) istället för raw_text
+        # Vi använder också strip() på HTML-strängen för säkerhets skull.
         html_content = f"""
 <div style="position: fixed; top: {text_area_top}; bottom: {text_area_bottom}; left: 0; right: 0; width: 100%; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
     <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
-        <div class="arabic-text {blur_class}" style="font-size: {font_size}; line-height: {line_height};">
-            {raw_text}
+        <div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
+            {display_text}
         </div>
     </div>
 </div>
