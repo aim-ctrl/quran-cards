@@ -37,8 +37,8 @@ def get_clean_length(text):
 def calculate_text_settings(text):
     clean_len = get_clean_length(text)
     
-    max_size = 6.0
-    min_size = 3.0
+    max_size = 7.0
+    min_size = 2.5
     
     short_threshold = 15
     long_threshold = 400
