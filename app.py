@@ -278,4 +278,9 @@ if selected_data:
         st.markdown(html_content, unsafe_allow_html=True)
 
     with c_right:
-        if st.button("❯", key="next") and st.session_state.card_index < len
+        if st.button("❯", key="next") and st.session_state.card_index < len(selected_data) - 1:
+            st.session_state.card_index += 1
+            st.rerun()
+else:
+    if st.button("Öppna inställningar", use_container_width=True):
+        open_settings()
