@@ -15,8 +15,9 @@ if 'chapter' not in st.session_state: st.session_state.chapter = 1
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7 
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
-# Ny state för färgläggning
 if 'hifz_colors' not in st.session_state: st.session_state.hifz_colors = False
+# NY STATE: Link Hints (Robt)
+if 'show_links' not in st.session_state: st.session_state.show_links = False
 
 # --- 2. LOGIC & HELPER FUNCTIONS ---
 
@@ -29,7 +30,6 @@ def get_chapter_info(chapter_id):
 
 @st.cache_data(show_spinner=False)
 def fetch_verses_data(chapter_num):
-    # Original URL (snabbare, ingen onödig data)
     url = f"https://api.quran.com/api/v4/verses/by_chapter/{chapter_num}?language=en&words=false&fields=text_uthmani,juz_number&per_page=1000"
     try: return requests.get(url).json()['verses']
     except: return []
@@ -61,22 +61,13 @@ def calculate_text_settings(text):
 
     return f"{final_size:.2f}vw", line_height
 
-# --- NY FUNKTION: Smart Hifz Färgläggning ---
 def apply_hifz_coloring(text):
-    """
-    Delar upp texten i ord och färgar första bokstaven i varje ord.
-    Detta skapar ett visuellt mönster som hjälper memorering utan att förstöra layouten.
-    """
     words = text.split(" ")
     colored_words = []
-    
-    # Färgval: En mjuk bränd orange/röd som syns bra men är vilsam för ögonen
     highlight_color = "#D35400" 
     
     for word in words:
         if word:
-            # Vi tar första tecknet och lägger i en span med färg
-            # Resten av ordet förblir svart (eller standardfärg)
             colored_word = f'<span style="color: {highlight_color};">{word[0]}</span>{word[1:]}'
             colored_words.append(colored_word)
         else:
@@ -94,7 +85,6 @@ st.markdown("""
     header, footer, [data-testid="stSidebar"] { display: none !important; }
     div[data-testid="stVerticalBlock"] { gap: 0rem !important; }
 
-    /* --- VIKTIGT: Knapp-styling med högsta Z-Index --- */
     .stButton > button {
         min-height: 0px !important;
         height: auto !important;
@@ -108,7 +98,6 @@ st.markdown("""
         z-index: 9999 !important; 
     }
 
-    /* Sidopilar */
     div[data-testid="column"]:nth-of-type(1) .stButton > button, 
     div[data-testid="column"]:nth-of-type(3) .stButton > button {
         opacity: 0 !important;
@@ -127,7 +116,16 @@ st.markdown("""
         padding: 0px 0px;
     }
     
-    /* En "gardin" som döljer texten när den scrollar upp bakom headern */
+    /* NY CSS: Länkhintar (Robt) */
+    .link-hint {
+        color: #B0B0B0; /* Ljusgrå */
+        font-size: 0.5em; /* Mycket mindre än huvudtexten */
+        display: inline-block;
+        margin: 0 10px;
+        vertical-align: middle;
+        font-family: 'Scheherazade New', serif;
+    }
+    
     .top-curtain {
         position: fixed;
         top: 0;
@@ -185,8 +183,10 @@ def open_settings():
         key=f"v_slider_{new_chapter}"
     )
     
-    # Toggle för Hifz-färg
-    hifz_colors = st.toggle("Hifz Colors (Markera start)", value=st.session_state.hifz_colors)
+    # Toggles
+    hifz_colors = st.toggle("Hifz Colors (Start Letters)", value=st.session_state.hifz_colors)
+    # NY TOGGLE
+    show_links = st.toggle("Connection Hints (Robt)", value=st.session_state.show_links)
 
     if st.button("Load", type="primary", use_container_width=True):
         st.session_state.chapter = new_chapter
@@ -194,6 +194,7 @@ def open_settings():
         st.session_state.end_v = verse_range[1]
         st.session_state.card_index = 0
         st.session_state.hifz_colors = hifz_colors
+        st.session_state.show_links = show_links
         st.rerun()
 
 # --- 6. RENDER ---
@@ -213,35 +214,44 @@ if selected_data:
     font_size, line_height = calculate_text_settings(raw_text)
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
 
-    # APPLICERA HIFZ-FÄRG OM VALT
+    # 1. PREPARERA TEXTEN
     display_text = raw_text
     if st.session_state.hifz_colors:
         display_text = apply_hifz_coloring(raw_text)
 
-    # 1. VIT BAKGRUNDS-GARDIN (Z-index 100)
+    # 2. HANTERA KOPPLINGAR (ROBT)
+    prev_html = ""
+    next_html = ""
+    
+    if st.session_state.show_links:
+        # Hämta förra versens sista ord
+        if st.session_state.card_index > 0:
+            prev_verse_text = selected_data[st.session_state.card_index - 1]['text_uthmani']
+            last_word = prev_verse_text.split(" ")[-1]
+            prev_html = f'<span class="link-hint">... {last_word}</span><br>'
+        
+        # Hämta nästa versens första ord
+        if st.session_state.card_index < len(selected_data) - 1:
+            next_verse_text = selected_data[st.session_state.card_index + 1]['text_uthmani']
+            first_word = next_verse_text.split(" ")[0]
+            next_html = f'<br><span class="link-hint">{first_word} ...</span>'
+
+    # 3. GUI RENDER
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
 
-    # 2. PROGRESS BAR (Z-index 200)
     st.markdown(f"""
     <div style="
-        position: fixed; 
-        top: 0; 
-        left: 0; 
-        width: 100%; 
-        height: 4px; 
-        background: #f0f0f0; 
-        z-index: 200;">
+        position: fixed; top: 0; left: 0; width: 100%; height: 4px; 
+        background: #f0f0f0; z-index: 200;">
         <div style="width:{progress_pct}%; height:100%; background:#2E8B57;"></div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 3. HEADER KNAPP (Z-index 9999)
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     with hc2: 
         if st.button(f"Juz {juz} | Chapter {st.session_state.chapter} | {surah_en} | {surah_ar} | Verse {verse_num}", use_container_width=True):
             open_settings()
 
-    # 4. MAIN CARD (Texten, Z-index 1)
     c_left, c_center, c_right = st.columns([1, 800, 1])
     
     with c_left:
@@ -253,13 +263,14 @@ if selected_data:
         text_area_top = "5vh"    
         text_area_bottom = "0vh" 
 
-        # VIKTIGT: Här skickar vi in display_text (som kan vara färgad) istället för raw_text
-        # Vi använder också strip() på HTML-strängen för säkerhets skull.
+        # Bygg hela HTML-blocket
         html_content = f"""
 <div style="position: fixed; top: {text_area_top}; bottom: {text_area_bottom}; left: 0; right: 0; width: 100%; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
     <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
         <div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
+            {prev_html}
             {display_text}
+            {next_html}
         </div>
     </div>
 </div>
@@ -267,9 +278,4 @@ if selected_data:
         st.markdown(html_content, unsafe_allow_html=True)
 
     with c_right:
-        if st.button("❯", key="next") and st.session_state.card_index < len(selected_data) - 1:
-            st.session_state.card_index += 1
-            st.rerun()
-else:
-    if st.button("Öppna inställningar", use_container_width=True):
-        open_settings()
+        if st.button("❯", key="next") and st.session_state.card_index < len
