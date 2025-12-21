@@ -15,6 +15,7 @@ if 'chapter' not in st.session_state: st.session_state.chapter = 1
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7 
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
+if 'show_translation' not in st.session_state: st.session_state.show_translation = False
 
 # --- 2. LOGIC & HELPER FUNCTIONS ---
 
@@ -27,7 +28,8 @@ def get_chapter_info(chapter_id):
 
 @st.cache_data(show_spinner=False)
 def fetch_verses_data(chapter_num):
-    url = f"https://api.quran.com/api/v4/verses/by_chapter/{chapter_num}?language=en&words=false&fields=text_uthmani,juz_number&per_page=1000"
+    # UPPDATERING: Lade till translations=131 (Saheeh International)
+    url = f"https://api.quran.com/api/v4/verses/by_chapter/{chapter_num}?language=en&words=false&translations=131&fields=text_uthmani,juz_number&per_page=1000"
     try: return requests.get(url).json()['verses']
     except: return []
 
@@ -103,6 +105,17 @@ st.markdown("""
         width: 100%;
         padding: 0px 0px;
     }
+
+    /* NY CSS: Styling för översättningen */
+    .translation-text {
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        font-size: 1.2rem;
+        line-height: 1.5;
+        color: #666;
+        text-align: center;
+        margin-top: 2rem;
+        direction: ltr;
+    }
     
     /* En "gardin" som döljer texten när den scrollar upp bakom headern */
     .top-curtain {
@@ -162,11 +175,15 @@ def open_settings():
         key=f"v_slider_{new_chapter}"
     )
 
+    # UPPDATERING: Toggle för översättning
+    show_trans = st.toggle("Show Translation", value=st.session_state.show_translation)
+
     if st.button("Load", type="primary", use_container_width=True):
         st.session_state.chapter = new_chapter
         st.session_state.start_v = verse_range[0]
         st.session_state.end_v = verse_range[1]
         st.session_state.card_index = 0
+        st.session_state.show_translation = show_trans # Spara inställning
         st.rerun()
 
 # --- 6. RENDER ---
@@ -190,7 +207,6 @@ if selected_data:
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
 
     # 2. PROGRESS BAR (Z-index 200 - Ligger på gardinen, men under knappen)
-    # Jag sätter denna till fixed top:0 så den alltid ligger högst upp i rutan
     st.markdown(f"""
     <div style="
         position: fixed; 
@@ -205,7 +221,6 @@ if selected_data:
     """, unsafe_allow_html=True)
 
     # 3. HEADER KNAPP (Z-index 9999 definierad i CSS)
-    # Vi använder en container för layout, men CSS lyfter upp knappen överst
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     with hc2: 
         if st.button(f"Juz {juz} | Chapter {st.session_state.chapter} | {surah_en} | {surah_ar} | Verse {verse_num}", use_container_width=True):
@@ -220,9 +235,18 @@ if selected_data:
             st.rerun()
 
     with c_center:
-        # Här definierar vi textytan
         text_area_top = "5vh"    
         text_area_bottom = "0vh" 
+
+        # UPPDATERING: Hämta översättningstext om aktiverad
+        translation_div = ""
+        if st.session_state.show_translation:
+            try:
+                # Hämtar första översättningen i listan
+                trans_text = current_verse['translations'][0]['text']
+                translation_div = f'<div class="translation-text">{trans_text}</div>'
+            except:
+                translation_div = ""
 
         st.markdown(f"""
         <div style="
@@ -238,10 +262,11 @@ if selected_data:
             overflow-y: auto;
             z-index: 1; /* Lägst prioritet */
         ">
-            <div style="max-width: 90%; width: 600px; margin: auto;">
+            <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 2rem;">
                 <div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
                     {raw_text}
                 </div>
+                {translation_div}
             </div>
         </div>
         """, unsafe_allow_html=True)
