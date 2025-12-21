@@ -62,7 +62,6 @@ def calculate_text_settings(text):
     return f"{final_size:.2f}vw", line_height
 
 def apply_hifz_coloring(text):
-    """Färgar första bokstaven i varje ord orange."""
     words = text.split(" ")
     colored_words = []
     highlight_color = "#D35400" 
@@ -77,12 +76,7 @@ def apply_hifz_coloring(text):
     return " ".join(colored_words)
 
 def prepare_overlay_text(text):
-    """
-    Förbereder texten för överlagret (Lager 2).
-    Här markerar vi Madd-tecknet med en speciell klass.
-    """
     madd_char = '\u0653'
-    # Vi lägger till en klass "madd-highlight" runt tecknet
     replacement = f'<span class="madd-highlight">{madd_char}</span>'
     return text.replace(madd_char, replacement)
 
@@ -124,7 +118,6 @@ st.markdown("""
         direction: rtl;
         text-align: center;
         width: 100%;
-        /* Font-inställningar sätts här för att ärvas identiskt av båda lagren */
         font-family: 'Scheherazade New', serif;
         color: #000;
     }
@@ -145,20 +138,18 @@ st.markdown("""
         width: 100%;
         height: 100%;
         z-index: 2;
-        pointer-events: none; /* Klick går igenom till texten under */
-        color: transparent; /* All text osynlig som standard */
+        pointer-events: none; 
+        color: transparent; 
     }
 
-    /* Tvinga allt i overlay att vara transparent först */
     .layer-overlay * {
         color: transparent !important;
     }
 
     /* Tänd bara Madd-tecknet i overlayn */
     .layer-overlay .madd-highlight {
-        color: #FF1493 !important; /* DeepPink */
-        /* Vi kan lägga till en text-shadow för att göra den lite "fetare" utan att ändra layout */
-        text-shadow: 0 0 1px #FF1493; 
+        color: #FF1493 !important; 
+        text-shadow: 0 0 0.5px #FF1493; 
         opacity: 0.9;
     }
     
@@ -261,29 +252,15 @@ if selected_data:
     font_size, line_height = calculate_text_settings(raw_text)
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
 
-    # --- FÖRBERED TEXTEN ---
-    
-    # Bas-text (alltid svart)
-    # Om Hifz är på, applicerar vi det på bastexten. 
-    # Overlayn kommer vara transparent så Hifz-färgerna syns igenom från basen.
+    # Förbered text för baslager (alltid svart, ev. Hifz-färg)
     text_for_base = raw_text
     if st.session_state.hifz_colors:
         text_for_base = apply_hifz_coloring(raw_text)
     
-    # Overlay-text (för Madd)
-    # Vi tar samma grundtext så strukturen är identisk
+    # Förbered text för overlay (Endast Madd ska synas)
     text_for_overlay = text_for_base 
-    
     if st.session_state.madd_colors:
-        # Vi modifierar overlay-strängen för att lägga till klasser runt madd
-        # OBS: Vi gör detta på texten som redan har Hifz-span (om den har det)
-        # Det fungerar eftersom replace letar efter tecknet \u0653 oavsett om det är i en span eller ej.
         text_for_overlay = prepare_overlay_text(text_for_overlay)
-    
-    # Hantera Hints (Robt)
-    # Hints lägger vi bara utanför själva "dubbel-lagret" eller i båda? 
-    # Enklast: Lägg dem i HTML-strukturen runt omkring eller hantera separat.
-    # För enkelhetens skull, låt oss bygga hela HTML-blocket med hints separat.
     
     prev_span = ""
     next_span = ""
@@ -295,32 +272,22 @@ if selected_data:
             n_txt = selected_data[st.session_state.card_index + 1]['text_uthmani']
             next_span = f' <span class="link-hint">{n_txt.split(" ")[0]}</span>'
 
-    # --- HTML STRUKTUR MED OVERLAY ---
-    # Vi skapar en container som håller båda lagren.
-    # Hints läggs utanför overlay-logiken för att inte krångla till det, 
-    # de påverkas sällan av madd ändå.
-    
+    # OBS: INGEN INDENTERING I HTML-STRÄNGEN NEDAN FÖR ATT UNDVIKA ATT DEN VISAS SOM KOD
     html_content = f"""
 <div style="position: fixed; top: 5vh; bottom: 0vh; left: 0; right: 0; width: 100%; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
-    <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
-        <div class="quran-container" style="font-size: {font_size}; line-height: {line_height};">
-            
-            {prev_span}
-            
-            <span style="position: relative; display: inline;">
-                <span class="layer-base">{text_for_base}</span>
-                
-                <span class="layer-overlay">{text_for_overlay}</span>
-            </span>
-
-            {next_span}
-
-        </div>
-    </div>
+<div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
+<div class="quran-container" style="font-size: {font_size}; line-height: {line_height};">
+{prev_span}
+<span style="position: relative; display: inline;">
+<span class="layer-base">{text_for_base}</span>
+<span class="layer-overlay">{text_for_overlay}</span>
+</span>
+{next_span}
+</div>
+</div>
 </div>
 """
 
-    # 3. GUI RENDER
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
 
     st.markdown(f"""
