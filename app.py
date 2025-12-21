@@ -37,14 +37,12 @@ def get_clean_length(text):
 def calculate_text_settings(text):
     clean_len = get_clean_length(text)
     
-    # --- Inställningar ---
-    max_size = 8.0   # Största tillåtna storlek (vw)
-    min_size = 1.0   # Minsta tillåtna storlek (vw)
+    max_size = 8.0
+    min_size = 1.0
     
     short_threshold = 15
     long_threshold = 699
     
-    # --- Logik ---
     if clean_len <= short_threshold:
         final_size = max_size
         line_height = "1.8"
@@ -71,7 +69,7 @@ st.markdown("""
     header, footer, [data-testid="stSidebar"] { display: none !important; }
     div[data-testid="stVerticalBlock"] { gap: 0rem !important; }
 
-    /* Knapp-styling för titeln */
+    /* --- VIKTIGT: Knapp-styling med högsta Z-Index --- */
     .stButton > button {
         min-height: 0px !important;
         height: auto !important;
@@ -82,18 +80,19 @@ st.markdown("""
         color: #2E8B57 !important;
         font-weight: 900 !important;
         
-        /* FIX: Se till att knappen ligger ovanpå texten */
+        /* Denna ser till att knappen ligger ovanpå ALLT (även progress bar) */
         position: relative !important; 
-        z-index: 100 !important;
+        z-index: 9999 !important; 
     }
 
-    /* Sidopilar (Dolda men aktiva för Swipe-skriptet) */
+    /* Sidopilar */
     div[data-testid="column"]:nth-of-type(1) .stButton > button, 
     div[data-testid="column"]:nth-of-type(3) .stButton > button {
         opacity: 0 !important;
         height: 80vh !important;
         width: 100% !important;
         pointer-events: none !important;
+        z-index: 10 !important;
     }
 
     .arabic-text {
@@ -105,17 +104,20 @@ st.markdown("""
         padding: 0px 10px;
     }
     
-    .header-wrapper {
-        padding-top: 20px;
-        padding-bottom: 5px;
-        position: relative;
-        z-index: 101; /* Ligger över texten */
-        background: white; /* Bra om texten scrollar under */
+    /* En "gardin" som döljer texten när den scrollar upp bakom headern */
+    .top-curtain {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 14vh; /* Justera denna om du vill ha mer/mindre vit yta i toppen */
+        background: white;
+        z-index: 100; /* Ligger över texten, men under progress/knapp */
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. SWIPE LOGIC (JAVASCRIPT) ---
+# --- 4. SWIPE LOGIC ---
 def add_swipe_support():
     swipe_js = """
     <script>
@@ -125,7 +127,6 @@ def add_swipe_support():
 
         function handleSwipe() {
             if (doc.querySelector('div[data-testid="stDialog"]')) return;
-
             const diff = touchendX - touchstartX;
             if (Math.abs(diff) > 60) {
                 if (diff > 0) {
@@ -145,7 +146,7 @@ def add_swipe_support():
 
 add_swipe_support()
 
-# --- 5. DIALOG (SETTINGS) ---
+# --- 5. DIALOG ---
 @st.dialog("Settings")
 def open_settings():
     new_chapter = st.slider("Chapter", 1, 114, st.session_state.chapter)
@@ -168,7 +169,7 @@ def open_settings():
         st.session_state.card_index = 0
         st.rerun()
 
-# --- 6. DATA PROCESSING & RENDER ---
+# --- 6. RENDER ---
 verses_data = fetch_verses_data(st.session_state.chapter)
 surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
 selected_data = verses_data[st.session_state.start_v - 1 : st.session_state.end_v]
@@ -185,29 +186,41 @@ if selected_data:
     font_size, line_height = calculate_text_settings(raw_text)
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
 
-    # 1. Progress Bar
-    st.markdown(f'<div style="width:100%; height:3px; background:#f0f0f0; position:relative; z-index:102;"><div style="width:{progress_pct}%; height:100%; background:#2E8B57;"></div></div>', unsafe_allow_html=True)
+    # 1. VIT BAKGRUNDS-GARDIN (Z-index 100)
+    st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
 
-    # 2. Header
-    st.markdown('<div class="header-wrapper">', unsafe_allow_html=True)
+    # 2. PROGRESS BAR (Z-index 200 - Ligger på gardinen, men under knappen)
+    # Jag sätter denna till fixed top:0 så den alltid ligger högst upp i rutan
+    st.markdown(f"""
+    <div style="
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 4px; 
+        background: #f0f0f0; 
+        z-index: 200;">
+        <div style="width:{progress_pct}%; height:100%; background:#2E8B57;"></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 3. HEADER KNAPP (Z-index 9999 definierad i CSS)
+    # Vi använder en container för layout, men CSS lyfter upp knappen överst
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     with hc2: 
         if st.button(f"Juz {juz} | Chapter {st.session_state.chapter} | {surah_en} | {surah_ar} | Verse {verse_num} ({get_clean_length(raw_text)})", use_container_width=True):
             open_settings()
-    st.markdown('</div>', unsafe_allow_html=True)
 
-    # 3. Main Card
+    # 4. MAIN CARD (Texten, Z-index 1)
     c_left, c_center, c_right = st.columns([1, 20, 1])
     
     with c_left:
-        # Navigeringsknappar (osynliga, styrs av swipe eller tangentbord)
         if st.button("❮", key="prev") and st.session_state.card_index > 0:
             st.session_state.card_index -= 1
             st.rerun()
 
     with c_center:
-        # --- FIX: TVINGAD POSITIONERING ---
-        # Justera top/bottom värdena här om du vill flytta textytan
+        # Här definierar vi textytan
         text_area_top = "15vh"    
         text_area_bottom = "10vh" 
 
@@ -223,7 +236,7 @@ if selected_data:
             align-items: center;
             justify-content: center;
             overflow-y: auto;
-            z-index: 1; 
+            z-index: 1; /* Lägst prioritet */
         ">
             <div style="max-width: 90%; width: 600px; margin: auto;">
                 <div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
