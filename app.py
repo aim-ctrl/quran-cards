@@ -28,7 +28,7 @@ def get_chapter_info(chapter_id):
 
 @st.cache_data(show_spinner=False)
 def fetch_verses_data(chapter_num):
-    # UPPDATERING: Lade till translations=131 (Saheeh International)
+    # UPPDATERAD URL: Inkluderar translations=131 (Saheeh International)
     url = f"https://api.quran.com/api/v4/verses/by_chapter/{chapter_num}?language=en&words=false&translations=131&fields=text_uthmani,juz_number&per_page=1000"
     try: return requests.get(url).json()['verses']
     except: return []
@@ -123,9 +123,9 @@ st.markdown("""
         top: 0;
         left: 0;
         width: 100%;
-        height: 4vh; /* Justera denna om du vill ha mer/mindre vit yta i toppen */
+        height: 4vh; 
         background: white;
-        z-index: 100; /* Ligger över texten, men under progress/knapp */
+        z-index: 100; 
     }
 </style>
 """, unsafe_allow_html=True)
@@ -175,7 +175,7 @@ def open_settings():
         key=f"v_slider_{new_chapter}"
     )
 
-    # UPPDATERING: Toggle för översättning
+    # TOGGLE: Välj om översättning ska visas
     show_trans = st.toggle("Show Translation", value=st.session_state.show_translation)
 
     if st.button("Load", type="primary", use_container_width=True):
@@ -183,7 +183,7 @@ def open_settings():
         st.session_state.start_v = verse_range[0]
         st.session_state.end_v = verse_range[1]
         st.session_state.card_index = 0
-        st.session_state.show_translation = show_trans # Spara inställning
+        st.session_state.show_translation = show_trans # Spara inställningen
         st.rerun()
 
 # --- 6. RENDER ---
@@ -203,10 +203,10 @@ if selected_data:
     font_size, line_height = calculate_text_settings(raw_text)
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
 
-    # 1. VIT BAKGRUNDS-GARDIN (Z-index 100)
+    # 1. TOP CURTAIN
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
 
-    # 2. PROGRESS BAR (Z-index 200 - Ligger på gardinen, men under knappen)
+    # 2. PROGRESS BAR
     st.markdown(f"""
     <div style="
         position: fixed; 
@@ -220,13 +220,13 @@ if selected_data:
     </div>
     """, unsafe_allow_html=True)
 
-    # 3. HEADER KNAPP (Z-index 9999 definierad i CSS)
+    # 3. HEADER
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     with hc2: 
         if st.button(f"Juz {juz} | Chapter {st.session_state.chapter} | {surah_en} | {surah_ar} | Verse {verse_num}", use_container_width=True):
             open_settings()
 
-    # 4. MAIN CARD (Texten, Z-index 1)
+    # 4. MAIN CARD
     c_left, c_center, c_right = st.columns([1, 800, 1])
     
     with c_left:
@@ -238,38 +238,30 @@ if selected_data:
         text_area_top = "5vh"    
         text_area_bottom = "0vh" 
 
-        # UPPDATERING: Hämta översättningstext om aktiverad
+        # Hämta översättning
         translation_div = ""
         if st.session_state.show_translation:
             try:
-                # Hämtar första översättningen i listan
-                trans_text = current_verse['translations'][0]['text']
-                translation_div = f'<div class="translation-text">{trans_text}</div>'
+                # Kolla så vi har data
+                trans_data = current_verse.get('translations', [])
+                if trans_data:
+                    trans_text = trans_data[0]['text']
+                    translation_div = f'<div class="translation-text">{trans_text}</div>'
             except:
                 translation_div = ""
 
-        st.markdown(f"""
-        <div style="
-            position: fixed;
-            top: {text_area_top};
-            bottom: {text_area_bottom};
-            left: 0;
-            right: 0;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow-y: auto;
-            z-index: 1; /* Lägst prioritet */
-        ">
-            <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 2rem;">
-                <div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
-                    {raw_text}
-                </div>
-                {translation_div}
-            </div>
+        # VIKTIGT: Här bygger vi HTML-strängen utan indrag för att undvika Markdown-fel
+        html_content = f"""
+<div style="position: fixed; top: {text_area_top}; bottom: {text_area_bottom}; left: 0; right: 0; width: 100%; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
+    <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
+        <div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
+            {raw_text}
         </div>
-        """, unsafe_allow_html=True)
+        {translation_div}
+    </div>
+</div>
+"""
+        st.markdown(html_content, unsafe_allow_html=True)
 
     with c_right:
         if st.button("❯", key="next") and st.session_state.card_index < len(selected_data) - 1:
