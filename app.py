@@ -15,6 +15,8 @@ if 'chapter' not in st.session_state: st.session_state.chapter = 1
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7 
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
+# Ny state för Hifz-läge
+if 'hifz_mode' not in st.session_state: st.session_state.hifz_mode = False
 
 # --- 2. LOGIC & HELPER FUNCTIONS ---
 
@@ -27,6 +29,7 @@ def get_chapter_info(chapter_id):
 
 @st.cache_data(show_spinner=False)
 def fetch_verses_data(chapter_num):
+    # Tillbaka till original-URL (inga översättningar för att spara data/tid)
     url = f"https://api.quran.com/api/v4/verses/by_chapter/{chapter_num}?language=en&words=false&fields=text_uthmani,juz_number&per_page=1000"
     try: return requests.get(url).json()['verses']
     except: return []
@@ -102,6 +105,22 @@ st.markdown("""
         color: #000;
         width: 100%;
         padding: 0px 0px;
+        transition: all 0.3s ease; /* Mjuk övergång för hifz */
+    }
+
+    /* --- NY CSS: Hifz Mode (Blur) --- */
+    /* Detta gör texten genomskinlig men ger den en skugga så den ser ut som ett moln */
+    .hifz-blur {
+        color: transparent !important;
+        text-shadow: 0 0 40px rgba(0,0,0,0.5);
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    /* När man håller musen över eller trycker på texten blir den skarp */
+    .hifz-blur:hover, .hifz-blur:active {
+        color: black !important;
+        text-shadow: none;
     }
     
     /* En "gardin" som döljer texten när den scrollar upp bakom headern */
@@ -110,9 +129,9 @@ st.markdown("""
         top: 0;
         left: 0;
         width: 100%;
-        height: 4vh; /* Justera denna om du vill ha mer/mindre vit yta i toppen */
+        height: 4vh; 
         background: white;
-        z-index: 100; /* Ligger över texten, men under progress/knapp */
+        z-index: 100; 
     }
 </style>
 """, unsafe_allow_html=True)
@@ -162,11 +181,15 @@ def open_settings():
         key=f"v_slider_{new_chapter}"
     )
 
+    # NY INSTÄLLNING: Hifz Mode
+    hifz_on = st.toggle("Hifz Mode (Blur Text)", value=st.session_state.hifz_mode)
+
     if st.button("Load", type="primary", use_container_width=True):
         st.session_state.chapter = new_chapter
         st.session_state.start_v = verse_range[0]
         st.session_state.end_v = verse_range[1]
         st.session_state.card_index = 0
+        st.session_state.hifz_mode = hifz_on # Spara Hifz-valet
         st.rerun()
 
 # --- 6. RENDER ---
@@ -189,8 +212,7 @@ if selected_data:
     # 1. VIT BAKGRUNDS-GARDIN (Z-index 100)
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
 
-    # 2. PROGRESS BAR (Z-index 200 - Ligger på gardinen, men under knappen)
-    # Jag sätter denna till fixed top:0 så den alltid ligger högst upp i rutan
+    # 2. PROGRESS BAR (Z-index 200)
     st.markdown(f"""
     <div style="
         position: fixed; 
@@ -204,8 +226,7 @@ if selected_data:
     </div>
     """, unsafe_allow_html=True)
 
-    # 3. HEADER KNAPP (Z-index 9999 definierad i CSS)
-    # Vi använder en container för layout, men CSS lyfter upp knappen överst
+    # 3. HEADER KNAPP (Z-index 9999)
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     with hc2: 
         if st.button(f"Juz {juz} | Chapter {st.session_state.chapter} | {surah_en} | {surah_ar} | Verse {verse_num}", use_container_width=True):
@@ -220,31 +241,23 @@ if selected_data:
             st.rerun()
 
     with c_center:
-        # Här definierar vi textytan
         text_area_top = "5vh"    
         text_area_bottom = "0vh" 
 
-        st.markdown(f"""
-        <div style="
-            position: fixed;
-            top: {text_area_top};
-            bottom: {text_area_bottom};
-            left: 0;
-            right: 0;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow-y: auto;
-            z-index: 1; /* Lägst prioritet */
-        ">
-            <div style="max-width: 90%; width: 600px; margin: auto;">
-                <div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
-                    {raw_text}
-                </div>
-            </div>
+        # Bestäm om vi ska använda Hifz-klassen
+        blur_class = "hifz-blur" if st.session_state.hifz_mode else ""
+
+        # VIKTIGT: Ingen indentering i HTML-strängen för att undvika "DIV"-buggen
+        html_content = f"""
+<div style="position: fixed; top: {text_area_top}; bottom: {text_area_bottom}; left: 0; right: 0; width: 100%; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
+    <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
+        <div class="arabic-text {blur_class}" style="font-size: {font_size}; line-height: {line_height};">
+            {raw_text}
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+</div>
+"""
+        st.markdown(html_content, unsafe_allow_html=True)
 
     with c_right:
         if st.button("❯", key="next") and st.session_state.card_index < len(selected_data) - 1:
