@@ -116,10 +116,10 @@ st.markdown("""
         padding: 0px 0px;
     }
     
-    /* UPPDATERAD CSS: Länk-hintarna ligger nu inline */
+    /* UPPDATERAD CSS: Mindre text för hintarna */
     .link-hint {
-        color: #C0C0C0; /* Ljusgrå färg som stör minimalt */
-        font-size: 0.65em; /* Lite mindre än huvudtexten */
+        color: #C0C0C0; /* Ljusgrå */
+        font-size: 0.60em; /* Ca 60% av versens storlek */
         opacity: 0.8;
         font-weight: normal;
     }
@@ -223,14 +223,14 @@ if selected_data:
         if st.session_state.card_index > 0:
             prev_verse_text = selected_data[st.session_state.card_index - 1]['text_uthmani']
             last_word = prev_verse_text.split(" ")[-1]
-            # Notera: span istället för div, och ett mellanslag efteråt
-            prev_span = f'<span class="link-hint">... {last_word}</span> '
+            # Prickar borttagna, bara ordet kvar
+            prev_span = f'<span class="link-hint">{last_word}</span> '
         
         if st.session_state.card_index < len(selected_data) - 1:
             next_verse_text = selected_data[st.session_state.card_index + 1]['text_uthmani']
             first_word = next_verse_text.split(" ")[0]
-            # Notera: span istället för div, och ett mellanslag innan
-            next_span = f' <span class="link-hint">{first_word} ...</span>'
+            # Prickar borttagna, bara ordet kvar
+            next_span = f' <span class="link-hint">{first_word}</span>'
 
     # Slå ihop allt till en rad
     final_html_text = f"{prev_span}{display_text}{next_span}"
