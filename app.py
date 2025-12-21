@@ -39,27 +39,27 @@ def get_clean_length(text):
 
 def calculate_text_settings(text):
     clean_len = get_clean_length(text)
-    
-    max_size = 7.0
-    min_size = 2.5
-    
-    short_threshold = 15
-    long_threshold = 400
+    max_size, min_size = 7.0, 2.5
+    short_threshold, long_threshold = 15, 400
     
     if clean_len <= short_threshold:
-        final_size = max_size
-        line_height = "1.9"
+        final_size, line_height = max_size, "1.9"
     elif clean_len >= long_threshold:
-        final_size = min_size
-        line_height = "1.65"
+        final_size, line_height = min_size, "1.65"
     else:
         progr = (clean_len - short_threshold) / (long_threshold - short_threshold)
-        size_diff = max_size - min_size
-        final_size = max_size - (progr * size_diff)
-        line_height_val = 1.8 - (progr * 0.3)
-        line_height = f"{line_height_val:.2f}"
+        final_size = max_size - (progr * (max_size - min_size))
+        line_height = f"{1.8 - (progr * 0.3):.2f}"
 
     return f"{final_size:.2f}vw", line_height
+
+def normalize_text(text):
+    """
+    Separerar bokstäver från diakritiska tecken (NFD).
+    Gör att 'Alif med Madd' (1 tecken) blir 'Alif' + 'Madd' (2 tecken).
+    Detta krävs för att kunna färga bara vågen.
+    """
+    return unicodedata.normalize('NFD', text)
 
 def apply_hifz_coloring(text):
     words = text.split(" ")
@@ -72,21 +72,25 @@ def apply_hifz_coloring(text):
             colored_words.append(colored_word)
         else:
             colored_words.append(word)
-            
     return " ".join(colored_words)
 
-def prepare_overlay_text(text):
-    # Unicode för Maddah (~). 
-    # Vi söker efter både standard Maddah (0653) och Small High Madda (06E4) för säkerhets skull.
-    madd_chars = ['\u0653', '\u06E4']
+def inject_madd_spans(text):
+    """
+    Oavsett om vi ska färga eller inte, sätter vi in en span-tagg runt madd-tecknen.
+    Varför? För att HTML-strukturen MÅSTE vara identisk i båda lagren för att 
+    de ska ligga exakt ovanpå varandra.
+    """
+    # Lista på tecken som ser ut som vågor (Maddah, Small High Madda etc)
+    madd_chars = ['\u0653', '\u06E4', '\u0622'] 
     
-    processed_text = text
-    for char in madd_chars:
-        # Ersätt tecknet med en span som har klassen .madd-highlight
-        replacement = f'<span class="madd-highlight">{char}</span>'
-        processed_text = processed_text.replace(char, replacement)
-        
-    return processed_text
+    # Eftersom vi kör NFD-normalisering innan, letar vi främst efter \u0653
+    target_char = '\u0653'
+    
+    # Vi markerar tecknet med en klass. 
+    # CSS styr sedan om den är svart (lager 1) eller rosa (lager 2).
+    replacement = f'<span class="madd-mark">{target_char}</span>'
+    
+    return text.replace(target_char, replacement)
 
 # --- 3. CSS STYLING ---
 st.markdown("""
@@ -99,25 +103,15 @@ st.markdown("""
     div[data-testid="stVerticalBlock"] { gap: 0rem !important; }
 
     .stButton > button {
-        min-height: 0px !important;
-        height: auto !important;
-        padding: 0px 0px !important;
-        line-height: 1.0 !important;
-        border: none !important;
-        background: transparent !important;
         color: #2E8B57 !important;
+        background: transparent !important;
+        border: none !important;
         font-weight: 900 !important;
-        position: relative !important; 
         z-index: 9999 !important; 
     }
-
     div[data-testid="column"]:nth-of-type(1) .stButton > button, 
     div[data-testid="column"]:nth-of-type(3) .stButton > button {
-        opacity: 0 !important;
-        height: 80vh !important;
-        width: 0% !important;
-        pointer-events: none !important;
-        z-index: 10 !important;
+        height: 80vh !important; width: 100% !important; opacity: 0;
     }
 
     /* CONTAINER FÖR LAGREN */
@@ -130,124 +124,78 @@ st.markdown("""
         color: #000;
     }
 
-    /* LAGER 1: BOTTEN (Den faktiska texten) */
+    /* LAGER 1: BOTTEN (Svart text) */
     .layer-base {
         position: relative;
         z-index: 1;
-        color: black; /* Svart text i botten */
+        color: black;
+    }
+    /* I baslagret ska madd-markeringen ärva färgen (svart eller hifz-orange) */
+    .layer-base .madd-mark {
+        color: inherit; 
     }
 
-    /* LAGER 2: TOPPEN (Overlay för färg) */
+    /* LAGER 2: TOPPEN (Overlay) */
     .layer-overlay {
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        top: 0; left: 0; width: 100%; height: 100%;
         z-index: 2;
-        pointer-events: none; /* Klick går igenom */
-        color: transparent;   /* Hela texten osynlig */
+        pointer-events: none; 
+        color: transparent; /* All text osynlig som standard */
     }
 
-    /* Tvinga transparens på allt i overlay, utom vår highlight */
-    .layer-overlay span:not(.madd-highlight) {
-        color: transparent !important;
-    }
+    /* I topplagret ska allt vara osynligt UTOM madd-markeringen om switchen är på */
+    .layer-overlay * { color: transparent !important; }
 
-    /* VIKTIGT: Madd-tecknet styling */
-    .layer-overlay .madd-highlight {
-        color: transparent; /* Själva tecknet transparent */
-        
-        /* TRICKET: Vi använder text-shadow för att rita tecknet */
-        /* 0px offset, 0px blur, och färgen DeepPink */
-        text-shadow: 0 0 0 #FF1493; 
-        
-        /* Stroke kan hjälpa i vissa webbläsare att göra det fetare */
-        -webkit-text-stroke: 1px #FF1493;
-        
+    /* Här sätter vi den ROSA färgen. 
+       Vi använder text-shadow för att garantera att den syns även om tecknet är tunt. */
+    .layer-overlay.show-pink .madd-mark {
+        color: #FF1493 !important; 
+        text-shadow: 0 0 1px #FF1493;
         opacity: 1 !important;
     }
-    
-    .link-hint {
-        color: #C0C0C0; 
-        font-size: 0.60em; 
-        opacity: 0.8;
-        font-weight: normal;
-    }
-    
-    .top-curtain {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 4vh; 
-        background: white;
-        z-index: 100; 
-    }
+
+    .link-hint { color: #C0C0C0; font-size: 0.60em; opacity: 0.8; font-weight: normal; }
+    .top-curtain { position: fixed; top: 0; left: 0; width: 100%; height: 4vh; background: white; z-index: 100; }
 </style>
 """, unsafe_allow_html=True)
 
 # --- 4. SWIPE LOGIC ---
-def add_swipe_support():
-    swipe_js = """
-    <script>
-        const doc = window.parent.document;
-        let touchstartX = 0;
-        let touchendX = 0;
-
-        function handleSwipe() {
-            if (doc.querySelector('div[data-testid="stDialog"]')) return;
-            const diff = touchendX - touchstartX;
-            if (Math.abs(diff) > 60) {
-                if (diff > 0) {
-                    const prevBtn = Array.from(doc.querySelectorAll('button')).find(el => el.innerText === '❮');
-                    if (prevBtn) prevBtn.click();
-                } else {
-                    const nextBtn = Array.from(doc.querySelectorAll('button')).find(el => el.innerText === '❯');
-                    if (nextBtn) nextBtn.click();
-                }
-            }
+components.html("""
+<script>
+    const doc = window.parent.document;
+    let touchstartX = 0, touchendX = 0;
+    doc.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; });
+    doc.addEventListener('touchend', e => { 
+        touchendX = e.changedTouches[0].screenX; 
+        if (Math.abs(touchendX - touchstartX) > 60) {
+            const btn = doc.querySelectorAll('button')[touchendX < touchstartX ? 2 : 0]; // 0=Prev, 2=Next (approx)
+            if (btn) btn.click();
         }
-        doc.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; }, false);
-        doc.addEventListener('touchend', e => { touchendX = e.changedTouches[0].screenX; handleSwipe(); }, false);
-    </script>
-    """
-    components.html(swipe_js, height=0, width=0)
-
-add_swipe_support()
+    });
+</script>
+""", height=0, width=0)
 
 # --- 5. DIALOG ---
 @st.dialog("Settings")
 def open_settings():
     new_chapter = st.slider("Chapter", 1, 114, st.session_state.chapter)
     _, _, total_verses = get_chapter_info(new_chapter)
-
-    if new_chapter != st.session_state.chapter:
-        default_range = (1, total_verses)
-    else:
-        default_range = (st.session_state.start_v, min(st.session_state.end_v, total_verses))
-
-    verse_range = st.slider(
-        "Verses", 1, total_verses, default_range,
-        key=f"v_slider_{new_chapter}"
-    )
+    default_range = (1, total_verses) if new_chapter != st.session_state.chapter else (st.session_state.start_v, min(st.session_state.end_v, total_verses))
     
-    col_sett_1, col_sett_2 = st.columns(2)
-    with col_sett_1:
-        hifz_colors = st.toggle("Hifz Colors (Start Letters)", value=st.session_state.hifz_colors)
-    with col_sett_2:
-        madd_colors = st.toggle("Madd Colors (Pink)", value=st.session_state.madd_colors)
-        
-    show_links = st.toggle("Connection Hints (Robt)", value=st.session_state.show_links)
+    verse_range = st.slider("Verses", 1, total_verses, default_range, key=f"v_{new_chapter}")
+    c1, c2 = st.columns(2)
+    hifz = c1.toggle("Hifz Colors", st.session_state.hifz_colors)
+    madd = c2.toggle("Madd Colors (Pink)", st.session_state.madd_colors)
+    links = st.toggle("Connection Hints", st.session_state.show_links)
 
     if st.button("Load", type="primary", use_container_width=True):
         st.session_state.chapter = new_chapter
-        st.session_state.start_v = verse_range[0]
-        st.session_state.end_v = verse_range[1]
+        st.session_state.start_v, st.session_state.end_v = verse_range
         st.session_state.card_index = 0
-        st.session_state.hifz_colors = hifz_colors
-        st.session_state.madd_colors = madd_colors
-        st.session_state.show_links = show_links
+        st.session_state.hifz_colors = hifz
+        st.session_state.madd_colors = madd
+        st.session_state.show_links = links
         st.rerun()
 
 # --- 6. RENDER ---
@@ -256,83 +204,65 @@ surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
 selected_data = verses_data[st.session_state.start_v - 1 : st.session_state.end_v]
 
 if selected_data:
-    if st.session_state.card_index >= len(selected_data):
-        st.session_state.card_index = 0
-        
-    current_verse = selected_data[st.session_state.card_index]
-    raw_text = current_verse['text_uthmani']
-    juz = current_verse['juz_number']
-    verse_num = current_verse['verse_key'].split(':')[1]
+    if st.session_state.card_index >= len(selected_data): st.session_state.card_index = 0
+    curr = selected_data[st.session_state.card_index]
     
-    font_size, line_height = calculate_text_settings(raw_text)
-    progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
-
-    # Förbered text för baslager
-    text_for_base = raw_text
+    # 1. Normalisera (separera Alif och Madd till två tecken)
+    normalized_text = normalize_text(curr['text_uthmani'])
+    
+    font_size, line_height = calculate_text_settings(normalized_text)
+    
+    # 2. Applicera Hifz-färgning (på hela texten först)
+    processed_text = normalized_text
     if st.session_state.hifz_colors:
-        text_for_base = apply_hifz_coloring(raw_text)
+        processed_text = apply_hifz_coloring(processed_text)
+        
+    # 3. Injicera Madd-spans i texten.
+    # Vi gör detta oavsett om färgen är på eller av, för att båda lagren ska ha SAMMA struktur.
+    final_structure = inject_madd_spans(processed_text)
     
-    # Förbered text för overlay
-    # Vi utgår från samma text så att bokstäverna hamnar på EXAKT samma plats
-    text_for_overlay = text_for_base 
-    if st.session_state.madd_colors:
-        text_for_overlay = prepare_overlay_text(text_for_overlay)
-    
-    prev_span = ""
-    next_span = ""
+    # Bestäm om overlay ska visa rosa eller inte via en CSS-klass
+    overlay_class = "show-pink" if st.session_state.madd_colors else ""
+
+    # Hints Logic
+    prev_h, next_h = "", ""
     if st.session_state.show_links:
         if st.session_state.card_index > 0:
-            p_txt = selected_data[st.session_state.card_index - 1]['text_uthmani']
-            prev_span = f'<span class="link-hint">{p_txt.split(" ")[-1]}</span> '
-        if st.session_state.card_index < len(selected_data) - 1:
-            n_txt = selected_data[st.session_state.card_index + 1]['text_uthmani']
-            next_span = f' <span class="link-hint">{n_txt.split(" ")[0]}</span>'
+            w = selected_data[st.session_state.card_index-1]['text_uthmani'].split(" ")[-1]
+            prev_h = f'<span class="link-hint">{w}</span> '
+        if st.session_state.card_index < len(selected_data)-1:
+            w = selected_data[st.session_state.card_index+1]['text_uthmani'].split(" ")[0]
+            next_h = f' <span class="link-hint">{w}</span>'
 
-    # HTML - Ingen indentering!
+    # HTML Output
     html_content = f"""
-<div style="position: fixed; top: 5vh; bottom: 0vh; left: 0; right: 0; width: 100%; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
-<div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
-<div class="quran-container" style="font-size: {font_size}; line-height: {line_height};">
-{prev_span}
-<span style="position: relative; display: inline-block;">
-<span class="layer-base">{text_for_base}</span>
-<span class="layer-overlay">{text_for_overlay}</span>
-</span>
-{next_span}
-</div>
-</div>
-</div>
-"""
+    <div style="position: fixed; top: 5vh; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
+        <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
+            <div class="quran-container" style="font-size: {font_size}; line-height: {line_height};">
+                {prev_h}
+                <span style="position: relative; display: inline-block;">
+                    <span class="layer-base">{final_structure}</span>
+                    <span class="layer-overlay {overlay_class}">{final_structure}</span>
+                </span>
+                {next_h}
+            </div>
+        </div>
+    </div>
+    """
 
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
-
-    st.markdown(f"""
-    <div style="
-        position: fixed; top: 0; left: 0; width: 100%; height: 4px; 
-        background: #f0f0f0; z-index: 200;">
-        <div style="width:{progress_pct}%; height:100%; background:#2E8B57;"></div>
-    </div>
-    """, unsafe_allow_html=True)
+    pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
+    st.markdown(f'<div style="position:fixed;top:0;left:0;width:100%;height:4px;background:#f0f0f0;z-index:200;"><div style="width:{pct}%;height:100%;background:#2E8B57;"></div></div>', unsafe_allow_html=True)
 
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     with hc2: 
-        if st.button(f"Juz {juz} | Chapter {st.session_state.chapter} | {surah_en} | {surah_ar} | Verse {verse_num}", use_container_width=True):
-            open_settings()
+        if st.button(f"Juz {curr['juz_number']} | Ch {st.session_state.chapter} | {surah_en} | Verse {curr['verse_key'].split(':')[1]}", use_container_width=True): open_settings()
 
-    c_left, c_center, c_right = st.columns([1, 800, 1])
-    
-    with c_left:
-        if st.button("❮", key="prev") and st.session_state.card_index > 0:
-            st.session_state.card_index -= 1
-            st.rerun()
-
-    with c_center:
-        st.markdown(html_content, unsafe_allow_html=True)
-
-    with c_right:
-        if st.button("❯", key="next") and st.session_state.card_index < len(selected_data) - 1:
-            st.session_state.card_index += 1
-            st.rerun()
+    c1, c2, c3 = st.columns([1, 800, 1])
+    with c1: 
+        if st.button("❮", key="prev") and st.session_state.card_index > 0: st.session_state.card_index -= 1; st.rerun()
+    with c2: st.markdown(html_content, unsafe_allow_html=True)
+    with c3: 
+        if st.button("❯", key="next") and st.session_state.card_index < len(selected_data)-1: st.session_state.card_index += 1; st.rerun()
 else:
-    if st.button("Öppna inställningar", use_container_width=True):
-        open_settings()
+    if st.button("Öppna inställningar"): open_settings()
