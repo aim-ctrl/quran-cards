@@ -35,42 +35,29 @@ def get_clean_length(text):
     return len([c for c in text if unicodedata.category(c) != 'Mn'])
 
 def calculate_text_settings(text):
-    # Vi antar att denna funktion finns definierad
     clean_len = get_clean_length(text)
     
     # --- Inställningar ---
     max_size = 8.0   # Största tillåtna storlek (vw)
-    min_size = 1.0   # Minsta tillåtna storlek (vw) - Läsbarhetsgräns
+    min_size = 1.0   # Minsta tillåtna storlek (vw)
     
-    short_threshold = 15   # Teckengräns för "kort text"
-    long_threshold = 699   # Teckengräns där vi når minsta storlek
+    short_threshold = 15
+    long_threshold = 699
     
     # --- Logik ---
-    
     if clean_len <= short_threshold:
-        # Om texten är kort, använd maximal storlek
         final_size = max_size
-        line_height = "1.8" # Lite tajtare radavstånd för stora rubriker/kort text
-        
+        line_height = "1.8"
     elif clean_len >= long_threshold:
-        # Om texten är väldigt lång, använd minsta storlek (golvet)
         final_size = min_size
-        line_height = "2.2" # Mer luft (radavstånd) för lång brödtext ökar läsbarheten
-        
+        line_height = "2.2"
     else:
-        # Mellanlång text: Skala mjukt mellan max och min
-        # Vi räknar ut hur många procent vi har "färdats" mellan kort och lång gräns
         progress = (clean_len - short_threshold) / (long_threshold - short_threshold)
-        
-        # Minska storleken baserat på progress
         size_diff = max_size - min_size
         final_size = max_size - (progress * size_diff)
-        
-        # Justera radhöjden dynamiskt också (från 1.8 till 2.2)
         line_height_val = 1.8 + (progress * 0.4)
         line_height = f"{line_height_val:.2f}"
 
-    # Returnera formaterade värden
     return f"{final_size:.2f}vw", line_height
 
 
@@ -94,6 +81,10 @@ st.markdown("""
         background: transparent !important;
         color: #2E8B57 !important;
         font-weight: 900 !important;
+        
+        /* FIX: Se till att knappen ligger ovanpå texten */
+        position: relative !important; 
+        z-index: 100 !important;
     }
 
     /* Sidopilar (Dolda men aktiva för Swipe-skriptet) */
@@ -117,6 +108,9 @@ st.markdown("""
     .header-wrapper {
         padding-top: 20px;
         padding-bottom: 5px;
+        position: relative;
+        z-index: 101; /* Ligger över texten */
+        background: white; /* Bra om texten scrollar under */
     }
 </style>
 """, unsafe_allow_html=True)
@@ -130,7 +124,6 @@ def add_swipe_support():
         let touchendX = 0;
 
         function handleSwipe() {
-            // Blockera swipe om dialogrutan (Settings) är öppen
             if (doc.querySelector('div[data-testid="stDialog"]')) return;
 
             const diff = touchendX - touchstartX;
@@ -155,9 +148,7 @@ add_swipe_support()
 # --- 5. DIALOG (SETTINGS) ---
 @st.dialog("Settings")
 def open_settings():
-    # Enkel slider med bara siffror (exkluderar kapitelnamn-logiken)
     new_chapter = st.slider("Chapter", 1, 114, st.session_state.chapter)
-    
     _, _, total_verses = get_chapter_info(new_chapter)
 
     if new_chapter != st.session_state.chapter:
@@ -165,7 +156,6 @@ def open_settings():
     else:
         default_range = (st.session_state.start_v, min(st.session_state.end_v, total_verses))
 
-    # Vers-slider med unik key för att undvika krasch vid kapitelbyte
     verse_range = st.slider(
         "Verses", 1, total_verses, default_range,
         key=f"v_slider_{new_chapter}"
@@ -196,9 +186,9 @@ if selected_data:
     progress_pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
 
     # 1. Progress Bar
-    st.markdown(f'<div style="width:100%; height:3px; background:#f0f0f0;"><div style="width:{progress_pct}%; height:100%; background:#2E8B57;"></div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="width:100%; height:3px; background:#f0f0f0; position:relative; z-index:102;"><div style="width:{progress_pct}%; height:100%; background:#2E8B57;"></div></div>', unsafe_allow_html=True)
 
-    # 2. Header (hc1: Juz, hc2: Namn, hc3: Vers)
+    # 2. Header
     st.markdown('<div class="header-wrapper">', unsafe_allow_html=True)
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     with hc2: 
@@ -210,15 +200,35 @@ if selected_data:
     c_left, c_center, c_right = st.columns([1, 20, 1])
     
     with c_left:
+        # Navigeringsknappar (osynliga, styrs av swipe eller tangentbord)
         if st.button("❮", key="prev") and st.session_state.card_index > 0:
             st.session_state.card_index -= 1
             st.rerun()
 
     with c_center:
+        # --- FIX: TVINGAD POSITIONERING ---
+        # Justera top/bottom värdena här om du vill flytta textytan
+        text_area_top = "15vh"    
+        text_area_bottom = "10vh" 
+
         st.markdown(f"""
-        <div style="height: 80vh; display: flex; align-items: center; justify-content: center; overflow-y: auto;">
-            <div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
-                {raw_text}
+        <div style="
+            position: fixed;
+            top: {text_area_top};
+            bottom: {text_area_bottom};
+            left: 0;
+            right: 0;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+            z-index: 1; 
+        ">
+            <div style="max-width: 90%; width: 600px; margin: auto;">
+                <div class="arabic-text" style="font-size: {font_size}; line-height: {line_height};">
+                    {raw_text}
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
