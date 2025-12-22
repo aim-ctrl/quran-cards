@@ -249,11 +249,11 @@ st.markdown("""
         box-shadow: 2px 0 0 #B3E5FC, -2px 0 0 #B3E5FC; 
     }
 
-    /* Qalqalah Kubra (Röd #FFCDD2) */
+    /* Qalqalah Kubra (Blå #B3E5FC) */
     .layer-highlight .t-q-kubra {
-        background-color: #FFCDD2; 
+        background-color: #B3E5FC; 
         border-radius: 4px;
-        box-shadow: 2px 0 0 #FFCDD2, -2px 0 0 #FFCDD2;
+        box-shadow: 2px 0 0 #B3E5FC, -2px 0 0 #B3E5FC;
     }
 
     .layer-highlight .h-start { background-color: transparent; }
