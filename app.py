@@ -17,7 +17,7 @@ if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
 if 'hifz_colors' not in st.session_state: st.session_state.hifz_colors = False
-if 'tajweed_mode' not in st.session_state: st.session_state.tajweed_mode = True 
+if 'tajweed_mode' not in st.session_state: st.session_state.tajweed_mode = False
 if 'show_links' not in st.session_state: st.session_state.show_links = False
 
 # --- 2. LOGIC & HELPER FUNCTIONS ---
