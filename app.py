@@ -56,46 +56,41 @@ def calculate_text_settings(text):
 
     return f"{final_size:.2f}vw", line_height
 
-# --- FÄRGNINGSFUNKTIONER ---
+# --- 3. TEXT PROCESSING (MARKUP) ---
 
-def get_hifz_html(text):
+def apply_qalqalah_markup(text):
+    """
+    Lägger till CSS-klasser i texten utan att ändra färger direkt (inline).
+    Vi använder klasserna 'q-sughra' och 'q-kubra'.
+    """
+    qalqalah_letters = "\u0642\u0637\u0628\u062c\u062f" # Qaf, Tta, Ba, Jeem, Dal
+    sukoon_marks = "\u0652\u06E1" 
+    
+    # 1. Qalqalah Sughra (Bokstav + Sukoon mitt i ord)
+    # Vi markerar både bokstaven (\1) och sukoonen (\2)
+    regex_sughra = f"([{qalqalah_letters}])([{sukoon_marks}])"
+    text = re.sub(regex_sughra, r'<span class="q-sughra">\1\2</span>', text)
+
+    # 2. Qalqalah Kubra (Slutet av vers/stopp)
+    # Vi markerar bokstaven (\1) och eventuella vokaler (\2) som följer
+    regex_kubra = f"([{qalqalah_letters}])([\u064B-\u065F]*)$"
+    text = re.sub(regex_kubra, r'<span class="q-kubra">\1\2</span>', text)
+    
+    return text
+
+def apply_hifz_markup(text):
     words = text.split(" ")
     colored_words = []
-    highlight_color = "#D35400" 
     for word in words:
         if word:
-            colored_words.append(f'<span style="color: {highlight_color};">{word[0]}</span>{word[1:]}')
+            # Markera första bokstaven med klassen 'h-start'
+            colored_words.append(f'<span class="h-start">{word[0]}</span>{word[1:]}')
         else:
             colored_words.append(word)
     return " ".join(colored_words)
 
-def get_qalqalah_background_html(text):
-    """
-    Skapar HTML för BAKGRUNDSLAGRET.
-    Texten här är TRANSPARENT.
-    Vi sätter BACKGROUND-COLOR på bokstäverna vi vill markera.
-    """
-    qalqalah_letters = "\u0642\u0637\u0628\u062c\u062f"
-    sukoon_marks = "\u0652\u06E1"
-    
-    # Ljusa pastellfärger för bakgrunden så texten syns tydligt ovanpå
-    bg_sughra = "#B3E5FC" # Ljusblå (Light Blue 100)
-    bg_kubra = "#FFCDD2"  # Ljusröd (Red 100)
-    
-    # Eftersom texten är transparent spelar "shaping" ingen roll visuellt här,
-    # men vi vill att markeringen ska täcka rätt yta.
-    
-    # 1. Sughra (Mitten) - Markera bokstav + sukoon
-    regex_sughra = f"([{qalqalah_letters}])([{sukoon_marks}])"
-    text = re.sub(regex_sughra, f'<span style="background-color: {bg_sughra}; border-radius: 4px;">\\1\\2</span>', text)
-
-    # 2. Kubra (Slutet) - Markera bokstav + ev. vokal
-    regex_kubra = f"([{qalqalah_letters}])([\u064B-\u065F]*)$"
-    text = re.sub(regex_kubra, f'<span style="background-color: {bg_kubra}; border-radius: 4px;">\\1\\2</span>', text)
-    
-    return text
-
-# --- 3. CSS STYLING ---
+# --- 4. CSS STYLING ---
+# Här definierar vi hur klasserna ser ut i de olika lagren
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
@@ -105,6 +100,7 @@ st.markdown("""
     header, footer, [data-testid="stSidebar"] { display: none !important; }
     div[data-testid="stVerticalBlock"] { gap: 0rem !important; }
 
+    /* Knappar */
     .stButton > button {
         min-height: 0px !important; height: auto !important; padding: 0px !important;
         line-height: 1.0 !important; border: none !important; background: transparent !important;
@@ -115,6 +111,7 @@ st.markdown("""
         opacity: 0 !important; height: 80vh !important; width: 0% !important; pointer-events: none !important; z-index: 10 !important;
     }
 
+    /* Containern för texten */
     .arabic-container {
         font-family: 'Scheherazade New', serif;
         direction: rtl;
@@ -123,6 +120,7 @@ st.markdown("""
         position: relative; 
     }
     
+    /* Gemensam stil för lagren */
     .layer {
         position: absolute;
         top: 0;
@@ -131,13 +129,48 @@ st.markdown("""
         direction: rtl;
         text-align: center;
     }
+
+    /* --- LAGER 1: BAKGRUND (HIGHLIGHTS) --- */
+    .layer-bg {
+        color: transparent; /* All text osynlig */
+        z-index: 1;
+    }
+    /* I bakgrundslagret ger vi färg åt bakgrunden på våra klasser */
+    .layer-bg .q-sughra {
+        background-color: #B3E5FC; /* Ljusblå */
+        border-radius: 3px;
+    }
+    .layer-bg .q-kubra {
+        background-color: #FFCDD2; /* Ljusröd */
+        border-radius: 3px;
+    }
+    /* Om vi har Hifz-färger på, kan vi ignorera dem i bakgrunden eller lägga till dem här om vi vill */
+
+    /* --- LAGER 2: FÖRGRUND (TEXT) --- */
+    .layer-fg {
+        color: #000; /* Svart text */
+        z-index: 2;
+        pointer-events: none; /* Låter klick gå igenom */
+    }
+    /* I förgrundslagret ska bakgrunden vara genomskinlig, så vi ser färgen från lager 1 */
+    .layer-fg .q-sughra, .layer-fg .q-kubra {
+        background-color: transparent;
+    }
     
+    /* HIFZ START LETTERS (Endast i förgrunden) */
+    .layer-fg .h-start {
+        color: #D35400; /* Orange bokstav */
+    }
+    .layer-bg .h-start {
+        color: transparent;
+    }
+
     .link-hint { color: #C0C0C0; font-size: 0.60em; opacity: 0.8; font-weight: normal; }
     .top-curtain { position: fixed; top: 0; left: 0; width: 100%; height: 4vh; background: white; z-index: 100; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. SWIPE LOGIC ---
+# --- 5. SWIPE LOGIC ---
 add_swipe_js = """
 <script>
     const doc = window.parent.document;
@@ -156,7 +189,7 @@ add_swipe_js = """
 """
 components.html(add_swipe_js, height=0, width=0)
 
-# --- 5. DIALOG ---
+# --- 6. DIALOG ---
 @st.dialog("Settings")
 def open_settings():
     new_chapter = st.slider("Chapter", 1, 114, st.session_state.chapter)
@@ -166,7 +199,7 @@ def open_settings():
     verse_range = st.slider("Verses", 1, total_verses, default_range, key=f"v_slider_{new_chapter}")
     
     c1, c2 = st.columns(2)
-    with c1: hifz_val = st.toggle("Hifz Colors", value=st.session_state.hifz_colors)
+    with c1: hifz_val = st.toggle("Hifz Colors (Start Letters)", value=st.session_state.hifz_colors)
     with c2: qalqala_val = st.toggle("Tajweed: Qalqalah (Highlight)", value=st.session_state.qalqalah_mode)
     show_links = st.toggle("Connection Hints", value=st.session_state.show_links)
 
@@ -180,7 +213,7 @@ def open_settings():
         st.session_state.show_links = show_links
         st.rerun()
 
-# --- 6. RENDER ---
+# --- 7. RENDER ---
 verses_data = fetch_verses_data(st.session_state.chapter)
 surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
 selected_data = verses_data[st.session_state.start_v - 1 : st.session_state.end_v]
@@ -192,25 +225,21 @@ if selected_data:
     
     font_size, line_height = calculate_text_settings(raw_text)
     
-    # --- LOGIK FÖR LAGER ---
+    # 1. Applicera Markup
+    # Vi skapar EN html-sträng som innehåller alla klasser (både hifz och qalqalah om valt)
+    processed_text = raw_text
     
-    # 1. Background Layer (Highlighting)
-    # Här är texten transparent, men vi sätter bakgrundsfärg på specifika spans.
-    bg_html_content = ""
-    use_overlay = False
+    # Ordningen spelar roll här. Oftast är det bäst att göra bokstavs-baserad (Qalqalah) först
+    # och ord-baserad (Hifz) sen, men för enkelhetens skull kör vi oberoende logik.
+    # Om båda är aktiva kan de krocka i regex, men vi prioriterar Qalqalah här.
     
     if st.session_state.qalqalah_mode:
-        use_overlay = True
-        # Vi använder rå text och lägger till bakgrundsfärger
-        # Textfärgen sätts till transparent i HTML-containern nedan
-        bg_html_content = get_qalqalah_background_html(raw_text)
-
-    # 2. Foreground Layer (Texten)
-    # Detta är den riktiga texten som syns.
-    fg_html_content = raw_text
+        processed_text = apply_qalqalah_markup(processed_text)
+        
     if st.session_state.hifz_colors and not st.session_state.qalqalah_mode:
-        fg_html_content = get_hifz_html(raw_text)
-
+        # Om vi kör Hifz, kör vi den. (Undviker krock för tillfället)
+        processed_text = apply_hifz_markup(processed_text)
+    
     # Länkar (Robt)
     prev_span = ""
     next_span = ""
@@ -222,25 +251,26 @@ if selected_data:
             n_text = selected_data[st.session_state.card_index + 1]['text_uthmani']
             next_span = f' <span class="link-hint">{n_text.split(" ")[0]}</span>'
 
-    # --- HTML SAMMANSÄTTNING ---
+    # --- 2. SKAPA HTML-LAGREN ---
+    
+    # Vi använder EXAKT samma 'processed_text' i båda lagren.
+    # Detta garanterar att renderingen och bredden blir identisk.
+    
+    full_html_content = f"{prev_span}{processed_text}{next_span}"
     
     container_style = f"font-size: {font_size}; line-height: {line_height};"
     
-    # Layer 1: Background (Highlights)
-    # Z-index 1. Color transparent.
-    layer_bg = ""
-    if use_overlay:
-        layer_bg = f"""
-        <div class="layer" style="color: transparent; z-index: 1;">
-             <span style="visibility: hidden;">{prev_span}</span>{bg_html_content}<span style="visibility: hidden;">{next_span}</span>
-        </div>
-        """
-        
-    # Layer 2: Foreground (Black Text)
-    # Z-index 2. 
+    # LAGER 1: Bakgrunden (Använder klassen .layer-bg som definierats i CSS)
+    layer_bg = f"""
+    <div class="layer layer-bg">
+        {full_html_content}
+    </div>
+    """
+    
+    # LAGER 2: Förgrunden (Använder klassen .layer-fg som definierats i CSS)
     layer_fg = f"""
-    <div class="layer" style="color: #000; z-index: 2;">
-        {prev_span}{fg_html_content}{next_span}
+    <div class="layer layer-fg">
+        {full_html_content}
     </div>
     """
 
