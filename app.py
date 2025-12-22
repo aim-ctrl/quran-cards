@@ -17,7 +17,6 @@ if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
 if 'show_links' not in st.session_state: st.session_state.show_links = False
-# NYTT: Håller koll på vilket läge vi är i ('card' eller 'grid')
 if 'view_mode' not in st.session_state: st.session_state.view_mode = 'card' 
 
 # --- 3. HELPER FUNCTIONS ---
@@ -37,29 +36,23 @@ def fetch_verses_data(chapter_num):
 def get_clean_length(text):
     return len([c for c in text if unicodedata.category(c) != 'Mn'])
 
-# NY FUNKTION: Extraherar första bokstaven + tashkeel
 def extract_initials(text):
     words = text.split()
     processed_words = []
     
     for word in words:
         if not word: continue
-        
-        # Hitta basbokstav + dess diakritiska tecken
         first_char_group = ""
         captured_base = False
         
         for char in word:
             category = unicodedata.category(char)
-            if category != 'Mn': # 'Mn' är Nonspacing_Mark (tashkeel)
-                if captured_base: 
-                    break # Vi har redan en basbokstav, sluta nu
+            if category != 'Mn': 
+                if captured_base: break 
                 captured_base = True
                 first_char_group += char
             else:
-                # Det är en tashkeel, lägg till den om vi har en basbokstav
-                if captured_base:
-                    first_char_group += char
+                if captured_base: first_char_group += char
         
         processed_words.append({
             "full": word,
@@ -95,27 +88,17 @@ st.markdown("""
     header, footer, [data-testid="stSidebar"] { display: none !important; }
     div[data-testid="stVerticalBlock"] { gap: 0rem !important; }
 
-    /* Navigeringsknappar (för Card View) */
     .stButton > button {
         min-height: 0px !important; height: auto !important; padding: 0px !important;
         line-height: 1.0 !important; border: none !important; background: transparent !important;
         color: #2E8B57 !important; font-weight: 900 !important; position: relative !important; z-index: 9999 !important; 
     }
     
-    /* Dölj sidoknapparna visuellt men behåll klickbarhet för Swipe */
     div[data-testid="column"]:nth-of-type(1) .nav-btn > button, 
     div[data-testid="column"]:nth-of-type(3) .nav-btn > button {
         opacity: 0 !important; height: 80vh !important; width: 0% !important; pointer-events: none !important; z-index: 10 !important;
     }
 
-    /* Top Navigation Icons */
-    .icon-btn > button {
-        font-size: 1.5rem !important;
-        color: #555 !important;
-        padding: 10px !important;
-    }
-
-    /* Arabic Card Container */
     .arabic-container {
         font-family: 'Scheherazade New', serif;
         direction: rtl;
@@ -130,7 +113,7 @@ st.markdown("""
     .link-hint { color: #C0C0C0; font-size: 0.60em; opacity: 0.8; font-weight: normal; }
     .top-curtain { position: fixed; top: 0; left: 0; width: 100%; height: 4vh; background: white; z-index: 100; }
 
-    /* --- HIFZ GRID STYLES --- */
+    /* HIFZ GRID STYLES */
     .hifz-grid {
         direction: rtl;
         font-family: 'Scheherazade New', serif;
@@ -151,31 +134,14 @@ st.markdown("""
         transition: background 0.1s;
     }
     
-    /* Touch/Click Feedback */
-    .hifz-word:active {
-        background-color: #f0f0f0;
-    }
-
-    /* Logic to swap Short vs Full text on Hold/Active */
+    .hifz-word:active { background-color: #f0f0f0; }
     .hifz-word .full-text { display: none; color: #000; }
     .hifz-word .short-text { display: inline; color: #444; }
-
     .hifz-word:active .full-text { display: inline; }
     .hifz-word:active .short-text { display: none; }
 
-    /* Verse Separator */
-    .verse-sep {
-        color: #2E8B57;
-        font-size: 0.8em;
-        margin: 0 5px;
-        user-select: none;
-    }
-
-    /* Rubt: First word of new verse gets distinctive color */
-    .verse-start .short-text {
-        color: #2E8B57; /* Green Theme Color */
-        font-weight: bold;
-    }
+    .verse-sep { color: #2E8B57; font-size: 0.8em; margin: 0 5px; user-select: none; }
+    .verse-start .short-text { color: #2E8B57; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -207,6 +173,10 @@ def open_settings():
     verse_range = st.slider("Verses", 1, total_verses, default_range, key=f"v_slider_{new_chapter}")
     
     show_links = st.toggle("Connection Hints", value=st.session_state.show_links)
+    
+    # Toggle för Compact Hifz Mode
+    is_grid = st.session_state.view_mode == 'grid'
+    use_grid = st.toggle("Compact Hifz Mode (First Letter)", value=is_grid)
 
     if st.button("Load", type="primary", use_container_width=True):
         st.session_state.chapter = new_chapter
@@ -214,6 +184,8 @@ def open_settings():
         st.session_state.end_v = verse_range[1]
         st.session_state.card_index = 0
         st.session_state.show_links = show_links
+        # Uppdatera view_mode baserat på togglen
+        st.session_state.view_mode = 'grid' if use_grid else 'card'
         st.rerun()
 
 # --- 6. MAIN LOGIC ---
@@ -222,25 +194,16 @@ surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
 selected_data = verses_data[st.session_state.start_v - 1 : st.session_state.end_v]
 
 if selected_data:
-    # --- HEADER / NAVIGATION BAR ---
+    # --- HEADER ---
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
     
-    # Progress Bar (Only visible in Card View generally, but kept for consistency)
     if st.session_state.view_mode == 'card':
         pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
         st.markdown(f'<div style="position:fixed;top:0;left:0;width:100%;height:4px;background:#f0f0f0;z-index:200;"><div style="width:{pct}%;height:100%;background:#2E8B57;"></div></div>', unsafe_allow_html=True)
 
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     
-    # Toggle View Button (Grid vs Card)
-    with hc1:
-        # Ikon ändras beroende på läge. ⊞ (Grid) eller ▣ (Card)
-        icon = "▣" if st.session_state.view_mode == 'grid' else "⊞"
-        if st.button(icon, key="toggle_view", help="Switch View"):
-            st.session_state.view_mode = 'grid' if st.session_state.view_mode == 'card' else 'card'
-            st.rerun()
-
-    # Settings Title Button
+    # hc1 och hc3 är nu tomma för balansering, titeln centrerad i hc2
     with hc2: 
         title_text = f"{surah_en} ({st.session_state.start_v}-{st.session_state.end_v})"
         if st.button(title_text, use_container_width=True):
@@ -270,7 +233,7 @@ if selected_data:
         final_html = f'<div class="arabic-container" style="{container_style}">{full_html_content}</div>'
 
         c_l, c_c, c_r = st.columns([1, 800, 1])
-        with c_l: # Använd class "nav-btn" för att gömma CSS stilen men behålla funktionalitet
+        with c_l:
             st.markdown('<div class="nav-btn">', unsafe_allow_html=True)
             if st.button("❯", key="p") and st.session_state.card_index > 0:
                 st.session_state.card_index -= 1
@@ -298,13 +261,10 @@ if selected_data:
         for idx, verse in enumerate(selected_data):
             verse_text = verse['text_uthmani']
             words = extract_initials(verse_text)
-            verse_num = verse['verse_key'].split(':')[1]
             
             for w_idx, word in enumerate(words):
-                # Om det är första ordet i versen (och inte absolut första i listan), markera för Rubt
                 extra_class = " verse-start" if w_idx == 0 else ""
                 
-                # HTML strukturen: visar short-text normalt, full-text vid :active
                 word_html = f"""
                 <span class="hifz-word{extra_class}" onclick="void(0)">
                     <span class="short-text">{word['short']}</span>
@@ -313,12 +273,10 @@ if selected_data:
                 """
                 grid_html += word_html
             
-            # Vers-separator
-            grid_html += f'<span class="verse-sep">۝</span>' # Alternativt: {verse_num}
+            grid_html += f'<span class="verse-sep">۝</span>'
         
         grid_html += '</div>'
         
-        # Render Grid
         st.markdown(f"""
         <div style="margin-top: 20px; padding-bottom: 50px;">
             {grid_html}
