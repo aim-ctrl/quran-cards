@@ -3,6 +3,7 @@ import requests
 import unicodedata
 import streamlit.components.v1 as components
 
+# --- 1. CONFIGURATION ---
 st.set_page_config(
     page_title="Quran Cards", 
     page_icon="📖", 
@@ -10,12 +11,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# --- 2. SESSION STATE ---
 if 'chapter' not in st.session_state: st.session_state.chapter = 1 
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
 if 'show_links' not in st.session_state: st.session_state.show_links = False
+# NYTT: Håller koll på vilket läge vi är i ('card' eller 'grid')
+if 'view_mode' not in st.session_state: st.session_state.view_mode = 'card' 
 
+# --- 3. HELPER FUNCTIONS ---
 @st.cache_data(show_spinner=False)
 def get_chapter_info(chapter_id):
     try:
@@ -31,6 +36,36 @@ def fetch_verses_data(chapter_num):
 
 def get_clean_length(text):
     return len([c for c in text if unicodedata.category(c) != 'Mn'])
+
+# NY FUNKTION: Extraherar första bokstaven + tashkeel
+def extract_initials(text):
+    words = text.split()
+    processed_words = []
+    
+    for word in words:
+        if not word: continue
+        
+        # Hitta basbokstav + dess diakritiska tecken
+        first_char_group = ""
+        captured_base = False
+        
+        for char in word:
+            category = unicodedata.category(char)
+            if category != 'Mn': # 'Mn' är Nonspacing_Mark (tashkeel)
+                if captured_base: 
+                    break # Vi har redan en basbokstav, sluta nu
+                captured_base = True
+                first_char_group += char
+            else:
+                # Det är en tashkeel, lägg till den om vi har en basbokstav
+                if captured_base:
+                    first_char_group += char
+        
+        processed_words.append({
+            "full": word,
+            "short": first_char_group
+        })
+    return processed_words
 
 def calculate_text_settings(text):
     clean_len = get_clean_length(text)
@@ -50,6 +85,7 @@ def calculate_text_settings(text):
 
     return f"{final_size:.2f}vw", line_height
 
+# --- 4. CSS & STYLES ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
@@ -59,16 +95,27 @@ st.markdown("""
     header, footer, [data-testid="stSidebar"] { display: none !important; }
     div[data-testid="stVerticalBlock"] { gap: 0rem !important; }
 
+    /* Navigeringsknappar (för Card View) */
     .stButton > button {
         min-height: 0px !important; height: auto !important; padding: 0px !important;
         line-height: 1.0 !important; border: none !important; background: transparent !important;
         color: #2E8B57 !important; font-weight: 900 !important; position: relative !important; z-index: 9999 !important; 
     }
-    div[data-testid="column"]:nth-of-type(1) .stButton > button, 
-    div[data-testid="column"]:nth-of-type(3) .stButton > button {
+    
+    /* Dölj sidoknapparna visuellt men behåll klickbarhet för Swipe */
+    div[data-testid="column"]:nth-of-type(1) .nav-btn > button, 
+    div[data-testid="column"]:nth-of-type(3) .nav-btn > button {
         opacity: 0 !important; height: 80vh !important; width: 0% !important; pointer-events: none !important; z-index: 10 !important;
     }
 
+    /* Top Navigation Icons */
+    .icon-btn > button {
+        font-size: 1.5rem !important;
+        color: #555 !important;
+        padding: 10px !important;
+    }
+
+    /* Arabic Card Container */
     .arabic-container {
         font-family: 'Scheherazade New', serif;
         direction: rtl;
@@ -82,6 +129,53 @@ st.markdown("""
     
     .link-hint { color: #C0C0C0; font-size: 0.60em; opacity: 0.8; font-weight: normal; }
     .top-curtain { position: fixed; top: 0; left: 0; width: 100%; height: 4vh; background: white; z-index: 100; }
+
+    /* --- HIFZ GRID STYLES --- */
+    .hifz-grid {
+        direction: rtl;
+        font-family: 'Scheherazade New', serif;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.4em;
+        padding: 20px;
+        line-height: 2.5;
+        font-size: 2.2rem;
+    }
+
+    .hifz-word {
+        position: relative;
+        cursor: pointer;
+        padding: 0 2px;
+        border-radius: 4px;
+        transition: background 0.1s;
+    }
+    
+    /* Touch/Click Feedback */
+    .hifz-word:active {
+        background-color: #f0f0f0;
+    }
+
+    /* Logic to swap Short vs Full text on Hold/Active */
+    .hifz-word .full-text { display: none; color: #000; }
+    .hifz-word .short-text { display: inline; color: #444; }
+
+    .hifz-word:active .full-text { display: inline; }
+    .hifz-word:active .short-text { display: none; }
+
+    /* Verse Separator */
+    .verse-sep {
+        color: #2E8B57;
+        font-size: 0.8em;
+        margin: 0 5px;
+        user-select: none;
+    }
+
+    /* Rubt: First word of new verse gets distinctive color */
+    .verse-start .short-text {
+        color: #2E8B57; /* Green Theme Color */
+        font-weight: bold;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -103,6 +197,7 @@ add_swipe_js = """
 """
 components.html(add_swipe_js, height=0, width=0)
 
+# --- 5. DIALOGS & SETTINGS ---
 @st.dialog("Settings")
 def open_settings():
     new_chapter = st.slider("Chapter", 1, 114, st.session_state.chapter)
@@ -121,57 +216,114 @@ def open_settings():
         st.session_state.show_links = show_links
         st.rerun()
 
+# --- 6. MAIN LOGIC ---
 verses_data = fetch_verses_data(st.session_state.chapter)
 surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
 selected_data = verses_data[st.session_state.start_v - 1 : st.session_state.end_v]
 
 if selected_data:
-    if st.session_state.card_index >= len(selected_data): st.session_state.card_index = 0
-    current_verse = selected_data[st.session_state.card_index]
-    raw_text = current_verse['text_uthmani']
-    
-    font_size, line_height = calculate_text_settings(raw_text)
-    
-    prev_span = ""
-    next_span = ""
-    if st.session_state.show_links:
-        if st.session_state.card_index > 0:
-            p_text = selected_data[st.session_state.card_index - 1]['text_uthmani']
-            prev_span = f'<span class="link-hint">{p_text.split(" ")[-1]}</span> '
-        if st.session_state.card_index < len(selected_data) - 1:
-            n_text = selected_data[st.session_state.card_index + 1]['text_uthmani']
-            next_span = f' <span class="link-hint">{n_text.split(" ")[0]}</span>'
-
-    full_html_content = f"{prev_span}{raw_text}{next_span}"
-    
-    container_style = f"font-size: {font_size}; line-height: {line_height};"
-    final_html = f'<div class="arabic-container" style="{container_style}">{full_html_content}</div>'
-
+    # --- HEADER / NAVIGATION BAR ---
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
-    pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
-    st.markdown(f'<div style="position:fixed;top:0;left:0;width:100%;height:4px;background:#f0f0f0;z-index:200;"><div style="width:{pct}%;height:100%;background:#2E8B57;"></div></div>', unsafe_allow_html=True)
+    
+    # Progress Bar (Only visible in Card View generally, but kept for consistency)
+    if st.session_state.view_mode == 'card':
+        pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
+        st.markdown(f'<div style="position:fixed;top:0;left:0;width:100%;height:4px;background:#f0f0f0;z-index:200;"><div style="width:{pct}%;height:100%;background:#2E8B57;"></div></div>', unsafe_allow_html=True)
 
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
+    
+    # Toggle View Button (Grid vs Card)
+    with hc1:
+        # Ikon ändras beroende på läge. ⊞ (Grid) eller ▣ (Card)
+        icon = "▣" if st.session_state.view_mode == 'grid' else "⊞"
+        if st.button(icon, key="toggle_view", help="Switch View"):
+            st.session_state.view_mode = 'grid' if st.session_state.view_mode == 'card' else 'card'
+            st.rerun()
+
+    # Settings Title Button
     with hc2: 
-        if st.button(f"Juz {current_verse['juz_number']} | Ch {st.session_state.chapter} | {surah_en} | Verse {current_verse['verse_key'].split(':')[1]}", use_container_width=True):
+        title_text = f"{surah_en} ({st.session_state.start_v}-{st.session_state.end_v})"
+        if st.button(title_text, use_container_width=True):
             open_settings()
 
-    c_l, c_c, c_r = st.columns([1, 800, 1])
-    with c_l:
-        if st.button("❯", key="p") and st.session_state.card_index > 0:
-            st.session_state.card_index -= 1
-            st.rerun()
-    with c_c:
-        st.markdown(f"""
-        <div style="position: fixed; top: 5vh; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
-            <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
-                {final_html}
+    # --- VIEW: CARD SWIPE MODE ---
+    if st.session_state.view_mode == 'card':
+        if st.session_state.card_index >= len(selected_data): st.session_state.card_index = 0
+        current_verse = selected_data[st.session_state.card_index]
+        raw_text = current_verse['text_uthmani']
+        
+        font_size, line_height = calculate_text_settings(raw_text)
+        
+        prev_span = ""
+        next_span = ""
+        if st.session_state.show_links:
+            if st.session_state.card_index > 0:
+                p_text = selected_data[st.session_state.card_index - 1]['text_uthmani']
+                prev_span = f'<span class="link-hint">{p_text.split(" ")[-1]}</span> '
+            if st.session_state.card_index < len(selected_data) - 1:
+                n_text = selected_data[st.session_state.card_index + 1]['text_uthmani']
+                next_span = f' <span class="link-hint">{n_text.split(" ")[0]}</span>'
+
+        full_html_content = f"{prev_span}{raw_text}{next_span}"
+        
+        container_style = f"font-size: {font_size}; line-height: {line_height};"
+        final_html = f'<div class="arabic-container" style="{container_style}">{full_html_content}</div>'
+
+        c_l, c_c, c_r = st.columns([1, 800, 1])
+        with c_l: # Använd class "nav-btn" för att gömma CSS stilen men behålla funktionalitet
+            st.markdown('<div class="nav-btn">', unsafe_allow_html=True)
+            if st.button("❯", key="p") and st.session_state.card_index > 0:
+                st.session_state.card_index -= 1
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+        with c_c:
+            st.markdown(f"""
+            <div style="position: fixed; top: 5vh; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
+                <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
+                    {final_html}
+                </div>
             </div>
+            """, unsafe_allow_html=True)
+        with c_r:
+            st.markdown('<div class="nav-btn">', unsafe_allow_html=True)
+            if st.button("❮", key="n") and st.session_state.card_index < len(selected_data) - 1:
+                st.session_state.card_index += 1
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- VIEW: COMPACT HIFZ MODE (GRID) ---
+    elif st.session_state.view_mode == 'grid':
+        grid_html = '<div class="hifz-grid">'
+        
+        for idx, verse in enumerate(selected_data):
+            verse_text = verse['text_uthmani']
+            words = extract_initials(verse_text)
+            verse_num = verse['verse_key'].split(':')[1]
+            
+            for w_idx, word in enumerate(words):
+                # Om det är första ordet i versen (och inte absolut första i listan), markera för Rubt
+                extra_class = " verse-start" if w_idx == 0 else ""
+                
+                # HTML strukturen: visar short-text normalt, full-text vid :active
+                word_html = f"""
+                <span class="hifz-word{extra_class}" onclick="void(0)">
+                    <span class="short-text">{word['short']}</span>
+                    <span class="full-text">{word['full']}</span>
+                </span>
+                """
+                grid_html += word_html
+            
+            # Vers-separator
+            grid_html += f'<span class="verse-sep">۝</span>' # Alternativt: {verse_num}
+        
+        grid_html += '</div>'
+        
+        # Render Grid
+        st.markdown(f"""
+        <div style="margin-top: 20px; padding-bottom: 50px;">
+            {grid_html}
         </div>
         """, unsafe_allow_html=True)
-    with c_r:
-        if st.button("❮", key="n") and st.session_state.card_index < len(selected_data) - 1:
-            st.session_state.card_index += 1
-            st.rerun()
+
 else:
     if st.button("Öppna inställningar", use_container_width=True): open_settings()
