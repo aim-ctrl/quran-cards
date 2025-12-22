@@ -36,6 +36,13 @@ def fetch_verses_data(chapter_num):
 def get_clean_length(text):
     return len([c for c in text if unicodedata.category(c) != 'Mn'])
 
+def to_arabic_numerals(number):
+    # Konverterar vanliga siffror till arabiska-indiska siffror (١, ٢, ٣)
+    western = '0123456789'
+    arabic = '٠١٢٣٤٥٦٧٨٩'
+    trans_table = str.maketrans(western, arabic)
+    return str(number).translate(trans_table)
+
 def extract_initials(text):
     words = text.split()
     processed_words = []
@@ -140,7 +147,14 @@ st.markdown("""
     .hifz-word:active .full-text { display: inline; }
     .hifz-word:active .short-text { display: none; }
 
-    .verse-sep { color: #2E8B57; font-size: 0.8em; margin: 0 5px; user-select: none; }
+    /* Snyggare vers-markör */
+    .verse-sep { 
+        color: #2E8B57; 
+        font-size: 0.8em; 
+        margin: 0 8px; 
+        user-select: none;
+        display: inline-block;
+    }
     .verse-start .short-text { color: #2E8B57; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
@@ -192,7 +206,18 @@ surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
 selected_data = verses_data[st.session_state.start_v - 1 : st.session_state.end_v]
 
 if selected_data:
-    # --- HEADER ---
+    # --- HEADER LOGIC ---
+    current_verse_data = selected_data[st.session_state.card_index] if st.session_state.card_index < len(selected_data) else selected_data[0]
+    juz_num = current_verse_data['juz_number']
+    
+    # Skapa titel baserat på vy
+    if st.session_state.view_mode == 'card':
+        # Card View: Ingen versnummer i titeln, men lång sträng
+        title_text = f"Juz {juz_num} | Ch {st.session_state.chapter} | {surah_en}"
+    else:
+        # Grid View: Visa intervall
+        title_text = f"Juz {juz_num} | Ch {st.session_state.chapter} | {surah_en} | Verses {st.session_state.start_v}-{st.session_state.end_v}"
+
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
     
     if st.session_state.view_mode == 'card':
@@ -202,7 +227,6 @@ if selected_data:
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     
     with hc2: 
-        title_text = f"{surah_en} ({st.session_state.start_v}-{st.session_state.end_v})"
         if st.button(title_text, use_container_width=True):
             open_settings()
 
@@ -211,6 +235,11 @@ if selected_data:
         if st.session_state.card_index >= len(selected_data): st.session_state.card_index = 0
         current_verse = selected_data[st.session_state.card_index]
         raw_text = current_verse['text_uthmani']
+        
+        # Hämta versnummer och skapa symbol
+        v_num = current_verse['verse_key'].split(':')[1]
+        v_num_ar = to_arabic_numerals(v_num)
+        end_marker = f'<span class="verse-sep" style="font-size: 0.8em;">{v_num_ar} ۝</span>'
         
         font_size, line_height = calculate_text_settings(raw_text)
         
@@ -224,7 +253,8 @@ if selected_data:
                 n_text = selected_data[st.session_state.card_index + 1]['text_uthmani']
                 next_span = f' <span class="link-hint">{n_text.split(" ")[0]}</span>'
 
-        full_html_content = f"{prev_span}{raw_text}{next_span}"
+        # Lägg till end_marker sist i texten
+        full_html_content = f"{prev_span}{raw_text}{end_marker}{next_span}"
         
         container_style = f"font-size: {font_size}; line-height: {line_height};"
         final_html = f'<div class="arabic-container" style="{container_style}">{full_html_content}</div>'
@@ -259,10 +289,13 @@ if selected_data:
             verse_text = verse['text_uthmani']
             words = extract_initials(verse_text)
             
+            # Hämta versnummer
+            v_num = verse['verse_key'].split(':')[1]
+            v_num_ar = to_arabic_numerals(v_num)
+            
             for w_idx, word in enumerate(words):
                 extra_class = " verse-start" if w_idx == 0 else ""
                 
-                # VIKTIGT: Ingen indentering/mellanslag i strängen nedan!
                 word_html = (
                     f'<span class="hifz-word{extra_class}" onclick="void(0)">'
                     f'<span class="short-text">{word["short"]}</span>'
@@ -271,7 +304,8 @@ if selected_data:
                 )
                 grid_html += word_html
             
-            grid_html += f'<span class="verse-sep">۝</span>'
+            # Lägg till vers-separator med nummer
+            grid_html += f'<span class="verse-sep">{v_num_ar} ۝</span>'
         
         grid_html += '</div>'
         
