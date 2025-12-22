@@ -61,88 +61,77 @@ def calculate_text_settings(text):
 def apply_tajweed_markup(text):
     """
     Avancerad identifiering av Tajweed-regler för Hafs.
-    Hanterar komplexa Unicode-sekvenser.
+    Hanterar komplexa Unicode-sekvenser och Ikhfa (Naket Noon).
     """
     
     # --- GRUNDSTENAR (REGEX BLOCKS) ---
-    # Vi bygger regex med variabler för att göra det läsbart och robust.
-    
-    # Alla arabiska bokstäver (inklusive Aleph varianter)
     LETTERS = r"[\u0621-\u064A]" 
-    
-    # Tashkeel (Alla diakritiska tecken: Fatha, Kasra, Damma, Litet Alif, etc.)
-    # \u064B-\u065F = Tanween, Vokaler, Sukoon, Shadda
-    # \u0670 = Litet Alif (Superscript Aleph)
-    # \u06D6-\u06ED = Paustecken och korantecken
-    # Vi exkluderar specifika tecken i logiken nedan, men detta är "fyllnaden".
+    # Alla diakritiska tecken (Fatha, Kasra, Damma, Tanween, Shadda, Sukoon etc)
+    # \u06E1 = "Head of Khah" (Izhar Sukoon)
     ANY_MARK = r"[\u064B-\u065F\u0670\u06D6-\u06ED]*"
     
     SHADDA = r"\u0651"
-    MADD_WAVE = r"\u0653" # Vågen (~)
-    SUKOON = r"[\u0652\u06E1]" # Vanlig sukoon och "Head of Khah"
+    MADD_WAVE = r"\u0653" 
+    SUKOON = r"[\u0652\u06E1]" 
     
-    # Qalqalah-bokstäver: Qaf, Tta, Ba, Jeem, Dal
     QALQALA_CHARS = r"[\u0642\u0637\u0628\u062c\u062f]" 
-    # Ghunna-bokstäver: Nun, Mim
-    GHUNNA_CHARS = r"[\u0646\u0645]"
+    GHUNNA_CHARS = r"[\u0646\u0645]" # Nun och Mim
+
+    # Yanmu-Ral (Idgham-bokstäver): Ya, Nun, Mim, Waw, Ra, Lam
+    # Unicode: \u064A (Ya), \u0646 (Nun), \u0645 (Mim), \u0648 (Waw), \u0631 (Ra), \u0644 (Lam)
+    YANMU_RAL = r"[\u064A\u0646\u0645\u0648\u0631\u0644]"
 
     # ---------------------------------------------------------
     # 1. MADD LAZIM (6 Harakat - Maroon)
     # ---------------------------------------------------------
-    # Regel: En bokstav med Madd-våg (~) som följs av en SHADDA eller SUKOON.
-    # Utmaning: Shaddan sitter på NÄSTA bokstav, ibland i nästa ord.
-    #
-    # Regex logik:
-    # (Bokstav + Saker + Våg) ... Titta framåt ... (Bokstav + Saker + Shadda)
-    
-
-
-    # ---------------------------------------------------------
-    # 2. MADD (4-5 Harakat - Rosa)
-    # ---------------------------------------------------------
-    # Regel: Alla Madd-vågor (~) som INTE är Lazim.
-    # Eftersom vi redan har wrappat Lazim i en <span>, kommer denna regex
-    # bara matcha de som är kvar (rå text).
-    
-    regex_madd_gen = f"({LETTERS}{ANY_MARK}{MADD_WAVE})"
-    text = re.sub(regex_madd_gen, r'<span class="t-madd-pink">\1</span>', text)
-
+    # Måste köras FÖRE vanlig Madd.
     regex_lazim = (
         f"({LETTERS}{ANY_MARK}{MADD_WAVE})"  # Grupp 1: Bokstav med våg
-        f"(?="                               # Lookahead (måste följas av...)
-        f"\\s*"                              # ...eventuella mellanslag
-        f"{LETTERS}"                         # ...nästa bokstav
-        f"{ANY_MARK}"                        # ...eventuella vokaler på den
-        f"{SHADDA}"                          # ...en SHADDA!
+        f"(?="                               # Lookahead
+        f"\\s*"                              # Mellanslag
+        f"{LETTERS}"                         # Nästa bokstav
+        f"{ANY_MARK}"                        # Vokaler
+        f"{SHADDA}"                          # Måste ha Shadda
         f")"
     )
     text = re.sub(regex_lazim, r'<span class="t-madd-maroon">\1</span>', text)
 
     # ---------------------------------------------------------
-    # 3. GHUNNA (2 Harakat - Grön)
+    # 2. MADD (4-5 Harakat - Rosa)
     # ---------------------------------------------------------
-    # Regel: Nun eller Mim med Shadda.
-    # Obs: Shaddan kan ligga före eller efter vokalen i Unicode-ordning.
-    # Vi söker: [Nun/Mim] följt av [Nåt tecken]* följt av [Shadda]
-    
-    regex_ghunna = f"({GHUNNA_CHARS}{ANY_MARK}{SHADDA})"
-    text = re.sub(regex_ghunna, r'<span class="t-ghunna">\1</span>', text)
+    # Tar hand om alla vågor (~) som Lazim-regeln ovan missade.
+    regex_madd_gen = f"({LETTERS}{ANY_MARK}{MADD_WAVE})"
+    text = re.sub(regex_madd_gen, r'<span class="t-madd-pink">\1</span>', text)
 
     # ---------------------------------------------------------
-    # 4. QALQALAH SUGHRA (Liten - Blå - Mitten av ord)
+    # 3. GHUNNA - MIM/NUN SHADDA (2 Harakat - Grön)
     # ---------------------------------------------------------
-    # Regel: Qalqalah-bokstav med SUKOON.
-    
+    regex_ghunna_shadda = f"({GHUNNA_CHARS}{ANY_MARK}{SHADDA})"
+    text = re.sub(regex_ghunna_shadda, r'<span class="t-ghunna">\1</span>', text)
+
+    # ---------------------------------------------------------
+    # 4. NY REGEL: NAKET NOON (IKHFA/GHUNNA)
+    # ---------------------------------------------------------
+    # Regel: Noon (\u0646) som INTE har några märken, och INTE följs av Yanmu-Ral.
+    regex_naked_noon = (
+        f"(\u0646)"                      # 1. Hitta Noon
+        f"(?![\\u064B-\\u065F\\u06E1])"  # 2. Lookahead Neg: Får INTE ha vokal/sukoon direkt efter (Naket)
+        f"(?="                           # 3. Lookahead Pos: Vad kommer sen?
+        f"\\s*"                          #    Tillåt mellanslag
+        f"[^{YANMU_RAL}]"                #    Får INTE vara en Yanmu-Ral bokstav
+        f")"
+    )
+    text = re.sub(regex_naked_noon, r'<span class="t-ghunna">\1</span>', text)
+
+    # ---------------------------------------------------------
+    # 5. QALQALAH SUGHRA (Liten - Blå - Mitten av ord)
+    # ---------------------------------------------------------
     regex_sughra = f"({QALQALA_CHARS}{ANY_MARK}{SUKOON})"
     text = re.sub(regex_sughra, r'<span class="t-q-sughra">\1</span>', text)
 
     # ---------------------------------------------------------
-    # 5. QALQALAH KUBRA (Stor - Röd - Slut på vers)
+    # 6. QALQALAH KUBRA (Stor - Röd - Slut på vers)
     # ---------------------------------------------------------
-    # Regel: Qalqalah-bokstav som är absolut SIST i strängen.
-    # Vi ignorerar vokaler på slutet för att matcha även om den har fatha/damma etc.
-    # (Man stannar på den = blir sukoon).
-    
     regex_kubra = f"({QALQALA_CHARS}{ANY_MARK})$"
     text = re.sub(regex_kubra, r'<span class="t-q-kubra">\1</span>', text)
     
