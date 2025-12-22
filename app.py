@@ -78,29 +78,54 @@ def apply_hifz_coloring(text):
 
 # <--- NY FUNKTION: Tajweed Coloring --->
 def apply_qalqalah_coloring(text):
-    # Bokstäverna för Qalqalah: Qaf, Tta, Ba, Jeem, Dal
-    qalqalah_letters = "\u0642\u0637\u0628\u062c\u062f" # قطبجد
+    # Bokstäverna för Qalqalah
+    qalqalah_letters = "\u0642\u0637\u0628\u062c\u062f" 
     
-    # Sukoon varianter (vanlig sukoon och den som ser ut som ett litet 'c' i uthmani)
+    # Sukoon varianter
     sukoon_marks = "\u0652\u06E1" 
     
-    # Färgdefinitioner
-    color_sughra = "#1E90FF" # DodgerBlue (Tydlig blå)
-    color_kubra = "#1E90FF"  # Crimson (Tydlig röd)
+    # FÄRGER
+    color_sughra = "#1E90FF" # Blå
+    color_kubra = "#DC143C"  # Röd
+    base_color = "#000000"   # Svart (för att återställa vokalerna)
+
+    # ---------------------------------------------------------
+    # TEKNIKEN:
+    # Vi omsluter ALLT med färgen (för att behålla formen/shaping).
+    # Sedan öppnar vi en inre span för vokalen (\2) där vi
+    # återställer färgen till svart och tar bort fetstilen.
+    # ---------------------------------------------------------
 
     # 1. QALQALA SUGHRA (Liten)
-    # Regex: Hitta en Qalqalah-bokstav följt av en Sukoon.
-    # Vi använder capture groups () för att behålla tecknen men lägga spans runt dem.
     regex_sughra = f"([{qalqalah_letters}])([{sukoon_marks}])"
-    text = re.sub(regex_sughra, f'<span style="color: {color_sughra}; font-weight: bold;">\\1\\2</span>', text)
+    
+    # Förklaring av ersättningssträngen:
+    # <span style="color: BLÅ; font-weight: bold;">  <-- Startar blå/fet
+    #    \1                                          <-- Bokstaven (blir blå/fet)
+    #    <span style="color: SVART; font-weight: normal;"> <-- Startar återställning
+    #        \2                                      <-- Sukoon (blir svart/vanlig)
+    #    </span>                                     <-- Slut återställning
+    # </span>                                        <-- Slut blå
+    
+    replacement_sughra = (
+        f'<span style="color: {color_sughra}; font-weight: bold;">'
+        f'\\1'
+        f'<span style="color: {base_color}; font-weight: normal;">\\2</span>'
+        f'</span>'
+    )
+    text = re.sub(regex_sughra, replacement_sughra, text)
 
     # 2. QALQALA KUBRA (Stor)
-    # Regex: Hitta en Qalqalah-bokstav som är absolut sist i strängen.
-    # Vi ignorerar eventuella vokaler (\u064B-\u065F) som sitter på bokstaven,
-    # eftersom man stannar på den (gör sukoon) vid versslut.
-    # $ betyder slutet på strängen.
+    # Samma logik här. Vi fångar ev. vokal på slutet (\2)
     regex_kubra = f"([{qalqalah_letters}])([\u064B-\u065F]*)$"
-    text = re.sub(regex_kubra, f'<span style="color: {color_kubra}; font-weight: bold;">\\1</span>\\2', text)
+    
+    replacement_kubra = (
+        f'<span style="color: {color_kubra}; font-weight: bold;">'
+        f'\\1'
+        f'<span style="color: {base_color}; font-weight: normal;">\\2</span>'
+        f'</span>'
+    )
+    text = re.sub(regex_kubra, replacement_kubra, text)
 
     return text
 
