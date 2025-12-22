@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import unicodedata
 import streamlit.components.v1 as components
+import re  # <--- NYTT: Behövs för regex
 
 # --- 1. SETUP & STATE ---
 st.set_page_config(
@@ -16,6 +17,7 @@ if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7 
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
 if 'hifz_colors' not in st.session_state: st.session_state.hifz_colors = False
+if 'qalqalah_mode' not in st.session_state: st.session_state.qalqalah_mode = False # <--- NYTT
 if 'show_links' not in st.session_state: st.session_state.show_links = False
 
 # --- 2. LOGIC & HELPER FUNCTIONS ---
@@ -63,7 +65,6 @@ def calculate_text_settings(text):
 def apply_hifz_coloring(text):
     words = text.split(" ")
     colored_words = []
-    # Färg: En mjuk orange/rostfärg för första bokstaven
     highlight_color = "#D35400" 
     
     for word in words:
@@ -74,6 +75,34 @@ def apply_hifz_coloring(text):
             colored_words.append(word)
             
     return " ".join(colored_words)
+
+# <--- NY FUNKTION: Tajweed Coloring --->
+def apply_qalqalah_coloring(text):
+    # Bokstäverna för Qalqalah: Qaf, Tta, Ba, Jeem, Dal
+    qalqalah_letters = "\u0642\u0637\u0628\u062c\u062f" # قطبجد
+    
+    # Sukoon varianter (vanlig sukoon och den som ser ut som ett litet 'c' i uthmani)
+    sukoon_marks = "\u0652\u06E1" 
+    
+    # Färgdefinitioner
+    color_sughra = "#1E90FF" # DodgerBlue (Tydlig blå)
+    color_kubra = "#DC143C"  # Crimson (Tydlig röd)
+
+    # 1. QALQALA SUGHRA (Liten)
+    # Regex: Hitta en Qalqalah-bokstav följt av en Sukoon.
+    # Vi använder capture groups () för att behålla tecknen men lägga spans runt dem.
+    regex_sughra = f"([{qalqalah_letters}])([{sukoon_marks}])"
+    text = re.sub(regex_sughra, f'<span style="color: {color_sughra}; font-weight: bold;">\\1\\2</span>', text)
+
+    # 2. QALQALA KUBRA (Stor)
+    # Regex: Hitta en Qalqalah-bokstav som är absolut sist i strängen.
+    # Vi ignorerar eventuella vokaler (\u064B-\u065F) som sitter på bokstaven,
+    # eftersom man stannar på den (gör sukoon) vid versslut.
+    # $ betyder slutet på strängen.
+    regex_kubra = f"([{qalqalah_letters}])([\u064B-\u065F]*)$"
+    text = re.sub(regex_kubra, f'<span style="color: {color_kubra}; font-weight: bold;">\\1\\2</span>', text)
+
+    return text
 
 # --- 3. CSS STYLING ---
 st.markdown("""
@@ -117,8 +146,8 @@ st.markdown("""
     }
     
     .link-hint {
-        color: #C0C0C0; /* Ljusgrå */
-        font-size: 0.60em; /* Ca 60% av versens storlek */
+        color: #C0C0C0;
+        font-size: 0.60em;
         opacity: 0.8;
         font-weight: normal;
     }
@@ -180,7 +209,14 @@ def open_settings():
         key=f"v_slider_{new_chapter}"
     )
     
-    hifz_colors = st.toggle("Hifz Colors (Start Letters)", value=st.session_state.hifz_colors)
+    c1, c2 = st.columns(2)
+    with c1:
+        # Hifz Colors
+        hifz_val = st.toggle("Hifz Colors (Start Letters)", value=st.session_state.hifz_colors)
+    with c2:
+        # Qalqalah Mode
+        qalqala_val = st.toggle("Tajweed: Qalqalah (Blue/Red)", value=st.session_state.qalqalah_mode)
+
     show_links = st.toggle("Connection Hints (Robt)", value=st.session_state.show_links)
 
     if st.button("Load", type="primary", use_container_width=True):
@@ -188,7 +224,12 @@ def open_settings():
         st.session_state.start_v = verse_range[0]
         st.session_state.end_v = verse_range[1]
         st.session_state.card_index = 0
-        st.session_state.hifz_colors = hifz_colors
+        
+        # Logik: Om Qalqalah är på, stäng av Hifz för att undvika krock, eller vice versa
+        # Här låter vi användarens val gälla, men prioriterar Qalqalah i renderingsloopen om båda är True
+        st.session_state.hifz_colors = hifz_val
+        st.session_state.qalqalah_mode = qalqala_val
+        
         st.session_state.show_links = show_links
         st.rerun()
 
@@ -211,7 +252,13 @@ if selected_data:
 
     # 1. PREPARERA HUVUDTEXTEN
     display_text = raw_text
-    if st.session_state.hifz_colors:
+    
+    # Prioriteringsordning för färgning
+    if st.session_state.qalqalah_mode:
+        # Om Tajweed är på, använd det
+        display_text = apply_qalqalah_coloring(raw_text)
+    elif st.session_state.hifz_colors:
+        # Annars om Hifz är på, använd det
         display_text = apply_hifz_coloring(raw_text)
 
     # 2. HANTERA KOPPLINGAR (ROBT) - INLINE
@@ -256,10 +303,9 @@ if selected_data:
             st.rerun()
 
     with c_center:
-        text_area_top = "5vh"    
+        text_area_top = "5vh"     
         text_area_bottom = "0vh" 
 
-        # VIKTIGT: Ingen indentering i HTML-strängen
         html_content = f"""
 <div style="position: fixed; top: {text_area_top}; bottom: {text_area_bottom}; left: 0; right: 0; width: 100%; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
 <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
