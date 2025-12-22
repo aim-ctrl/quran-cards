@@ -40,7 +40,6 @@ def get_clean_length(text):
 
 def calculate_text_settings(text):
     clean_len = get_clean_length(text)
-    # Justerat storlekar något för bättre passform
     max_size, min_size = 7.0, 2.5
     short_threshold, long_threshold = 15, 400
     
@@ -83,7 +82,7 @@ def apply_hifz_markup(text):
             colored_words.append(word)
     return " ".join(colored_words)
 
-# --- 4. CSS (CLEAN & TIGHT) ---
+# --- 4. CSS (LAYOUT FIX) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
@@ -103,39 +102,54 @@ st.markdown("""
         opacity: 0 !important; height: 80vh !important; width: 0% !important; pointer-events: none !important; z-index: 10 !important;
     }
 
-    /* CONTAINER */
+    /* CONTAINER: Position Relative behövs för att styra absolute-barnet */
     .arabic-container {
         font-family: 'Scheherazade New', serif;
         direction: rtl;
         text-align: center;
         width: 100%;
-        position: relative;
+        position: relative; /* Master container */
         text-rendering: geometricPrecision; 
         -webkit-font-smoothing: antialiased;
         padding: 0;
         margin: 0;
     }
     
-    /* LAGER - NOLLSTÄLL ALLT */
+    /* GEMENSAMMA EGENSKAPER */
     .layer {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0; /* Tvinga full bredd */
         direction: rtl;
         text-align: center;
-        white-space: normal; /* Inga konstiga radbrytningar */
+        white-space: normal;
         margin: 0;
         padding: 0;
         border: 0;
     }
 
-    /* LAGER 1: HIGHLIGHT (Botten) */
-    .layer-highlight {
-        z-index: 1;
-        /* Osynligt bläck-metoden */
-        color: rgba(0, 0, 0, 0.01); 
+    /* LAGER 1: TEXT (Mastern) */
+    /* Detta lager är RELATIVE. Det betyder att det tar plats och styr höjden. */
+    .layer-text {
+        position: relative; 
+        z-index: 2; /* Ligger överst så texten är skarp */
+        color: #000;
+        background: transparent;
+        pointer-events: none; /* Klick går igenom om vi vill */
     }
+    .layer-text .q-sughra, .layer-text .q-kubra { background-color: transparent; }
+    .layer-text .h-start { color: #D35400; }
+
+    /* LAGER 2: HIGHLIGHT (Bakgrunden) */
+    /* Detta lager är ABSOLUTE. Det lägger sig exakt ovanpå (eller under) texten */
+    .layer-highlight {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1; /* Ligger under texten */
+        color: rgba(0, 0, 0, 0.01); /* Osynligt bläck */
+        user-select: none;
+    }
+    
     .layer-highlight .q-sughra {
         background-color: #B3E5FC;
         border-radius: 4px;
@@ -147,16 +161,6 @@ st.markdown("""
         box-shadow: 2px 0 0 #FFCDD2, -2px 0 0 #FFCDD2;
     }
     .layer-highlight .h-start { background-color: transparent; }
-
-    /* LAGER 2: TEXT (Toppen) */
-    .layer-text {
-        color: #000;
-        z-index: 2;
-        pointer-events: none;
-        background: transparent;
-    }
-    .layer-text .q-sughra, .layer-text .q-kubra { background-color: transparent; }
-    .layer-text .h-start { color: #D35400; }
 
     .link-hint { color: #C0C0C0; font-size: 0.60em; opacity: 0.8; font-weight: normal; }
     .top-curtain { position: fixed; top: 0; left: 0; width: 100%; height: 4vh; background: white; z-index: 100; }
@@ -235,15 +239,19 @@ if selected_data:
             n_text = selected_data[st.session_state.card_index + 1]['text_uthmani']
             next_span = f' <span class="link-hint">{n_text.split(" ")[0]}</span>'
 
-    # SAMMANFOGA ALLT PÅ EN ENDA RAD (Inga \n)
     full_html_content = f"{prev_span}{processed_text}{next_span}"
     
     container_style = f"font-size: {font_size}; line-height: {line_height};"
     
-    # VIKTIGT: Här tar vi bort alla radbrytningar i f-strängen för att undvika spök-element
+    # 1. HIGHLIGHT (ABSOLUTE - Ligger underst, följer med texten)
     layer_highlight = f'<div class="layer layer-highlight">{full_html_content}</div>'
+    
+    # 2. TEXT (RELATIVE - Master - Styr layouten)
     layer_text = f'<div class="layer layer-text">{full_html_content}</div>'
 
+    # Ordningen i HTML: Highlight först, sen Text. 
+    # Eftersom Highlight är absolute(top:0) och Text är relative, 
+    # så kommer Texten att ritas ut "vanligt" och Highlighten ritas ovanpå (eller under beroende på z-index) på samma plats.
     final_html = f'<div class="arabic-container" style="{container_style}">{layer_highlight}{layer_text}</div>'
 
     # --- UI RENDER ---
@@ -262,7 +270,6 @@ if selected_data:
             st.session_state.card_index -= 1
             st.rerun()
     with c_c:
-        # Centrerings-container utanför HTML-blocket
         st.markdown(f"""
         <div style="position: fixed; top: 5vh; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
             <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
