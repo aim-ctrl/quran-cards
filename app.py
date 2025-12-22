@@ -126,10 +126,10 @@ st.markdown("""
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
-        gap: 0.4em;
-        padding: 20px;
-        line-height: 2.5;
-        font-size: 2.2rem;
+        gap: 0.1em;
+        padding: 0px;
+        line-height: 1.6;
+        font-size: 0.8rem;
     }
 
     .hifz-word {
