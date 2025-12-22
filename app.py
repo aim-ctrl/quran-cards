@@ -2,7 +2,6 @@ import streamlit as st
 import requests
 import unicodedata
 import streamlit.components.v1 as components
-import re
 
 # --- 1. SETUP & STATE ---
 st.set_page_config(
@@ -16,9 +15,11 @@ if 'chapter' not in st.session_state: st.session_state.chapter = 1
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 7
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
-if 'hifz_colors' not in st.session_state: st.session_state.hifz_colors = False
-if 'tajweed_mode' not in st.session_state: st.session_state.tajweed_mode = False
 if 'show_links' not in st.session_state: st.session_state.show_links = False
+
+# Nya state-variabler för färgerna
+if 'color_1' not in st.session_state: st.session_state.color_1 = "#000000" # Svart
+if 'color_2' not in st.session_state: st.session_state.color_2 = "#2E8B57" # Grön
 
 # --- 2. LOGIC & HELPER FUNCTIONS ---
 
@@ -45,7 +46,7 @@ def calculate_text_settings(text):
     
     if clean_len <= short_threshold:
         final_size = max_size
-        line_height = "2.2" # Lite extra höjd för Madd-tecken
+        line_height = "2.2"
     elif clean_len >= long_threshold:
         final_size = min_size
         line_height = "1.8"
@@ -56,83 +57,25 @@ def calculate_text_settings(text):
 
     return f"{final_size:.2f}vw", line_height
 
-# --- 3. ROBUST TAJWEED ENGINE ---
+# --- 3. NY FÄRGLOGIK ---
 
-def apply_tajweed_markup(text):
+def style_alternating_words(text, col1, col2):
     """
-    Avancerad identifiering av Tajweed-regler för Hafs.
-    Korrigerad för att fånga Ikhfa (Naket Noon) korrekt.
+    Delar upp texten i ord och applicerar färg 1 på jämna ord
+    och färg 2 på udda ord.
     """
+    words = text.split()
+    styled_words = []
     
-    # --- 1. DEFINIERA TECKEN ---
-    LETTERS = r"[\u0621-\u064A]" 
-    
-    # Alla diakritiska tecken (Vokaler, Tanween, Shadda, Sukoon, etc)
-    # Vi inkluderar även "Head of Khah" (\u06E1) som används för Izhar.
-    ANY_MARK = r"[\u064B-\u065F\u0670\u06D6-\u06ED]*"
-    
-    SHADDA = r"\u0651"
-    MADD_WAVE = r"\u0653" 
-    SUKOON = r"[\u0652\u06E1]" 
-    
-    QALQALA_CHARS = r"[\u0642\u0637\u0628\u062c\u062f]" 
-    GHUNNA_CHARS = r"[\u0646\u0645]" 
-
-    # Idgham-bokstäver (Yanmu-Ral) - UTAN klamrar här
-    YANMU_RAL_STR = "\u064A\u0646\u0645\u0648\u0631\u0644"
-
-    # --- 2. APPLICERA REGLER (ORDNINGEN ÄR VIKTIG) ---
-
-    # A. MADD LAZIM (6 Harakat - Maroon)
-    regex_lazim = (
-        f"({LETTERS}{ANY_MARK}{MADD_WAVE})"
-        f"(?=\\s*{LETTERS}{ANY_MARK}{SHADDA})" 
-    )
-    text = re.sub(regex_lazim, r'<span class="t-madd-maroon">\1</span>', text)
-
-    # B. MADD (4-5 Harakat - Rosa)
-    # Tar allt som Lazim missade
-    regex_madd_gen = f"({LETTERS}{ANY_MARK}{MADD_WAVE})"
-    text = re.sub(regex_madd_gen, r'<span class="t-madd-pink">\1</span>', text)
-
-    # C. GHUNNA - MIM/NUN MED SHADDA (Grön)
-    regex_ghunna_shadda = f"({GHUNNA_CHARS}{ANY_MARK}{SHADDA})"
-    text = re.sub(regex_ghunna_shadda, r'<span class="t-ghunna">\1</span>', text)
-
-    # D. IKHFA - NAKET NOON (Grön) - KORRIGERAD
-    # Vi letar efter Noon (\u0646) som:
-    # 1. INTE följs av några diakritiska tecken (vokaler/sukoon).
-    # 2. Följs av en bokstav som INTE är Yanmu-Ral.
-    regex_naked_noon = (
-        f"(\u0646)"                      # Gruppen vi vill färga (Noon)
-        f"(?![\\u064B-\\u065F\\u06E1])"  # Neg Lookahead: Får INTE ha vokal/sukoon på sig
-        f"(?="                           # Pos Lookahead: Måste följas av...
-        f"\\s*"                          # ...noll eller flera mellanslag...
-        f"[^{YANMU_RAL_STR}]"            # ...och sen ett tecken som INTE är Yanmu-Ral
-        f")"
-    )
-    text = re.sub(regex_naked_noon, r'<span class="t-ghunna">\1</span>', text)
-
-    # E. QALQALAH SUGHRA (Blå - Mitt i ord)
-    regex_sughra = f"({QALQALA_CHARS}{ANY_MARK}{SUKOON})"
-    text = re.sub(regex_sughra, r'<span class="t-q-sughra">\1</span>', text)
-
-    # F. QALQALAH KUBRA (Blå - Slutet av vers)
-    # \s* hanterar osynliga mellanslag på slutet
-    regex_kubra = f"({QALQALA_CHARS}{ANY_MARK})\s*$"
-    text = re.sub(regex_kubra, r'<span class="t-q-kubra">\1</span>', text)
-    
-    return text
-
-def apply_hifz_markup(text):
-    words = text.split(" ")
-    colored_words = []
-    for word in words:
-        if word:
-            colored_words.append(f'<span class="h-start">{word[0]}</span>{word[1:]}')
+    for i, word in enumerate(words):
+        if i % 2 == 0:
+            # Jämna (0, 2, 4...) -> Färg 1
+            styled_words.append(f'<span style="color: {col1};">{word}</span>')
         else:
-            colored_words.append(word)
-    return " ".join(colored_words)
+            # Udda (1, 3, 5...) -> Färg 2
+            styled_words.append(f'<span style="color: {col2};">{word}</span>')
+            
+    return " ".join(styled_words)
 
 # --- 4. CSS STYLING ---
 st.markdown("""
@@ -166,74 +109,6 @@ st.markdown("""
         padding: 0; margin: 0;
     }
     
-    .layer {
-        direction: rtl;
-        text-align: center;
-        white-space: normal;
-        margin: 0; padding: 0; border: 0;
-    }
-
-    /* LAGER 1: TEXT (Master - Relative) */
-    .layer-text {
-        position: relative; 
-        z-index: 2;
-        color: #000;
-        background: transparent;
-        pointer-events: none;
-    }
-    /* Gör taggarna osynliga i textlagret */
-    .layer-text .t-ghunna, .layer-text .t-madd-pink, .layer-text .t-madd-maroon, 
-    .layer-text .t-q-sughra, .layer-text .t-q-kubra { background-color: transparent; }
-    .layer-text .h-start { color: #D35400; }
-
-    /* LAGER 2: HIGHLIGHT (Background - Absolute) */
-    .layer-highlight {
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        z-index: 1;
-        color: rgba(0, 0, 0, 0.01); 
-        user-select: none;
-    }
-    
-    /* --- TAJWEED FÄRGER --- */
-    
-    /* Ghunna (Grön #A5D6A7) */
-    .layer-highlight .t-ghunna {
-        background-color: #A5D6A7; 
-        border-radius: 4px;
-        box-shadow: 2px 0 0 #A5D6A7, -2px 0 0 #A5D6A7;
-    }
-
-    /* Madd Normal (Rosa #F8BBD0) */
-    .layer-highlight .t-madd-pink {
-        background-color: #F8BBD0; 
-        border-radius: 4px;
-        box-shadow: 2px 0 0 #F8BBD0, -2px 0 0 #F8BBD0;
-    }
-
-    /* Madd Lazim (Maroon/Mörkröd #E57373) */
-    .layer-highlight .t-madd-maroon {
-        background-color: #E57373;
-        border-radius: 4px;
-        box-shadow: 2px 0 0 #E57373, -2px 0 0 #E57373;
-    }
-
-    /* Qalqalah Sughra (Blå #B3E5FC) */
-    .layer-highlight .t-q-sughra {
-        background-color: #B3E5FC; 
-        border-radius: 4px;
-        box-shadow: 2px 0 0 #B3E5FC, -2px 0 0 #B3E5FC; 
-    }
-
-    /* Qalqalah Kubra (Blå #B3E5FC) */
-    .layer-highlight .t-q-kubra {
-        background-color: #B3E5FC; 
-        border-radius: 4px;
-        box-shadow: 2px 0 0 #B3E5FC, -2px 0 0 #B3E5FC;
-    }
-
-    .layer-highlight .h-start { background-color: transparent; }
-
     .link-hint { color: #C0C0C0; font-size: 0.60em; opacity: 0.8; font-weight: normal; }
     .top-curtain { position: fixed; top: 0; left: 0; width: 100%; height: 4vh; background: white; z-index: 100; }
 </style>
@@ -267,9 +142,12 @@ def open_settings():
     default_range = (1, total_verses) if new_chapter != st.session_state.chapter else (st.session_state.start_v, min(st.session_state.end_v, total_verses))
     verse_range = st.slider("Verses", 1, total_verses, default_range, key=f"v_slider_{new_chapter}")
     
+    st.markdown("---")
+    st.markdown("**Color Settings**")
     c1, c2 = st.columns(2)
-    with c1: hifz_val = st.toggle("Hifz Colors", value=st.session_state.hifz_colors)
-    with c2: tajweed_val = st.toggle("Show Tajweed Colors", value=st.session_state.tajweed_mode)
+    with c1: color1_val = st.color_picker("Odd Words", st.session_state.color_1)
+    with c2: color2_val = st.color_picker("Even Words", st.session_state.color_2)
+    
     show_links = st.toggle("Connection Hints", value=st.session_state.show_links)
 
     if st.button("Load", type="primary", use_container_width=True):
@@ -277,9 +155,9 @@ def open_settings():
         st.session_state.start_v = verse_range[0]
         st.session_state.end_v = verse_range[1]
         st.session_state.card_index = 0
-        st.session_state.hifz_colors = hifz_val
-        st.session_state.tajweed_mode = tajweed_val
         st.session_state.show_links = show_links
+        st.session_state.color_1 = color1_val
+        st.session_state.color_2 = color2_val
         st.rerun()
 
 # --- 7. RENDER ---
@@ -294,13 +172,8 @@ if selected_data:
     
     font_size, line_height = calculate_text_settings(raw_text)
     
-    processed_text = raw_text
-    
-    if st.session_state.tajweed_mode:
-        processed_text = apply_tajweed_markup(processed_text)
-    
-    if st.session_state.hifz_colors and not st.session_state.tajweed_mode:
-        processed_text = apply_hifz_markup(processed_text)
+    # Applicera alternerande färger
+    processed_text = style_alternating_words(raw_text, st.session_state.color_1, st.session_state.color_2)
     
     prev_span = ""
     next_span = ""
@@ -316,12 +189,8 @@ if selected_data:
     
     container_style = f"font-size: {font_size}; line-height: {line_height};"
     
-    # HIGHLIGHT ligger underst (Absolute)
-    layer_highlight = f'<div class="layer layer-highlight">{full_html_content}</div>'
-    # TEXT ligger överst (Relative - Master)
-    layer_text = f'<div class="layer layer-text">{full_html_content}</div>'
-
-    final_html = f'<div class="arabic-container" style="{container_style}">{layer_highlight}{layer_text}</div>'
+    # Förenklad rendering: Endast en container nu (inget highlight-lager behövs)
+    final_html = f'<div class="arabic-container" style="{container_style}">{full_html_content}</div>'
 
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
     pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
@@ -334,7 +203,7 @@ if selected_data:
 
     c_l, c_c, c_r = st.columns([1, 800, 1])
     with c_l:
-        if st.button("❮", key="p") and st.session_state.card_index > 0:
+        if st.button("❯", key="p") and st.session_state.card_index > 0:
             st.session_state.card_index -= 1
             st.rerun()
     with c_c:
@@ -346,7 +215,7 @@ if selected_data:
         </div>
         """, unsafe_allow_html=True)
     with c_r:
-        if st.button("❯", key="n") and st.session_state.card_index < len(selected_data) - 1:
+        if st.button("❮", key="n") and st.session_state.card_index < len(selected_data) - 1:
             st.session_state.card_index += 1
             st.rerun()
 else:
