@@ -73,25 +73,32 @@ def get_hifz_html(text):
 def get_qalqalah_overlay_html(text):
     """
     Skapar HTML för det ÖVRE lagret (Förgrunden).
-    Allt här är transparent förutom Qalqalah-bokstäverna.
+    Vi använder Zero Width Joiner (\u200D) för att tvinga bokstäverna
+    att behålla sin "kopplade" form även inuti span-taggen.
     """
     qalqalah_letters = "\u0642\u0637\u0628\u062c\u062f"
     sukoon_marks = "\u0652\u06E1"
+    
     color_sughra = "#1E90FF" # Blå
     color_kubra = "#DC143C"  # Röd
     
-    # Notera: Vi sätter INTE bold här, för om vi gör bokstaven tjockare än bakgrundslagret
-    # så kommer det inte matcha. Om du vill ha bold måste BÅDA lagren vara bold.
-    # Vi färgar BARA grupp 1 (bokstaven). Grupp 2 (vokalen) lämnas utanför spanen
-    # och ärver därmed transparens från containern.
+    # ZWJ (Zero Width Joiner) - "Det osynliga klistret"
+    zwj = "\u200D"
 
-    # 1. Sughra
+    # 1. Sughra (Mitten av ord)
+    # Bokstaven ska koppla både till höger och vänster.
+    # Vi lägger ZWJ på BÅDA sidor om bokstaven/sukoonen inuti spanen.
+    # Resultat: Bokstaven sträcker ut "armar" åt båda hållen och matchar bakgrunden.
     regex_sughra = f"([{qalqalah_letters}])([{sukoon_marks}])"
-    text = re.sub(regex_sughra, f'<span style="color: {color_sughra};">\\1</span>\\2', text)
+    
+    # Notera: {zwj} läggs till före och efter inuti färgen
+    text = re.sub(regex_sughra, f'<span style="color: {color_sughra};">{zwj}\\1\\2{zwj}</span>', text)
 
-    # 2. Kubra
+    # 2. Kubra (Slutet av ord/vers)
+    # Bokstaven ska oftast koppla till höger (föregående bokstav), men inte till vänster.
+    # Vi lägger ZWJ BARA före bokstaven.
     regex_kubra = f"([{qalqalah_letters}])([\u064B-\u065F]*)$"
-    text = re.sub(regex_kubra, f'<span style="color: {color_kubra};">\\1</span>\\2', text)
+    text = re.sub(regex_kubra, f'<span style="color: {color_kubra};">{zwj}\\1\\2</span>', text)
     
     return text
 
