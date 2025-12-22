@@ -12,12 +12,12 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-if 'chapter' not in st.session_state: st.session_state.chapter = 112 # Default till Surah Al-Ikhlas (kort och bra test)
+if 'chapter' not in st.session_state: st.session_state.chapter = 112 
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
 if 'end_v' not in st.session_state: st.session_state.end_v = 4
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
 if 'hifz_colors' not in st.session_state: st.session_state.hifz_colors = False
-if 'qalqalah_mode' not in st.session_state: st.session_state.qalqalah_mode = True # Default PÅ för att testa
+if 'qalqalah_mode' not in st.session_state: st.session_state.qalqalah_mode = True 
 if 'show_links' not in st.session_state: st.session_state.show_links = False
 
 # --- 2. LOGIC & HELPER FUNCTIONS ---
@@ -40,12 +40,13 @@ def get_clean_length(text):
 
 def calculate_text_settings(text):
     clean_len = get_clean_length(text)
+    # Justerat storlekar något för bättre passform
     max_size, min_size = 7.0, 2.5
     short_threshold, long_threshold = 15, 400
     
     if clean_len <= short_threshold:
         final_size = max_size
-        line_height = "2.0" # Lite högre radavstånd för att ge plats åt highlights
+        line_height = "2.0" 
     elif clean_len >= long_threshold:
         final_size = min_size
         line_height = "1.7"
@@ -56,22 +57,17 @@ def calculate_text_settings(text):
 
     return f"{final_size:.2f}vw", line_height
 
-# --- 3. TEXT PROCESSING (MARKUP) ---
+# --- 3. MARKUP LOGIC ---
 
 def apply_qalqalah_markup(text):
-    """
-    Lägger till CSS-klasser. Notera att vi använder ZWJ (&zwj;) i logiken
-    om det skulle behövas, men med highlight-metoden är det viktigaste
-    att HTML-strukturen är identisk i båda lagren.
-    """
     qalqalah_letters = "\u0642\u0637\u0628\u062c\u062f"
     sukoon_marks = "\u0652\u06E1" 
     
-    # 1. Qalqalah Sughra
+    # 1. Sughra
     regex_sughra = f"([{qalqalah_letters}])([{sukoon_marks}])"
     text = re.sub(regex_sughra, r'<span class="q-sughra">\1\2</span>', text)
 
-    # 2. Qalqalah Kubra
+    # 2. Kubra
     regex_kubra = f"([{qalqalah_letters}])([\u064B-\u065F]*)$"
     text = re.sub(regex_kubra, r'<span class="q-kubra">\1\2</span>', text)
     
@@ -87,7 +83,7 @@ def apply_hifz_markup(text):
             colored_words.append(word)
     return " ".join(colored_words)
 
-# --- 4. CSS STYLING ---
+# --- 4. CSS (CLEAN & TIGHT) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
@@ -107,77 +103,67 @@ st.markdown("""
         opacity: 0 !important; height: 80vh !important; width: 0% !important; pointer-events: none !important; z-index: 10 !important;
     }
 
-    /* Containern */
+    /* CONTAINER */
     .arabic-container {
         font-family: 'Scheherazade New', serif;
         direction: rtl;
         text-align: center;
         width: 100%;
         position: relative;
-        /* VIKTIGT: Tvingar exakt rendering */
         text-rendering: geometricPrecision; 
         -webkit-font-smoothing: antialiased;
+        padding: 0;
+        margin: 0;
     }
     
+    /* LAGER - NOLLSTÄLL ALLT */
     .layer {
         position: absolute;
         top: 0;
         left: 0;
-        width: 100%;
+        right: 0; /* Tvinga full bredd */
         direction: rtl;
         text-align: center;
-        white-space: pre-wrap; /* Måste vara samma för båda */
+        white-space: normal; /* Inga konstiga radbrytningar */
+        margin: 0;
+        padding: 0;
+        border: 0;
     }
 
-    /* --- LAGER 1: HIGHLIGHT (Botten) --- */
+    /* LAGER 1: HIGHLIGHT (Botten) */
     .layer-highlight {
         z-index: 1;
-        /* TRICKET: Inte transparent, utan nästan osynlig svart. 
-           Detta tvingar webbläsaren att beräkna avståndet exakt som svart text. */
+        /* Osynligt bläck-metoden */
         color: rgba(0, 0, 0, 0.01); 
-        user-select: none; /* Så man inte råkar markera skuggtexten */
     }
-    
     .layer-highlight .q-sughra {
-        background-color: #B3E5FC; /* Ljusblå */
+        background-color: #B3E5FC;
         border-radius: 4px;
-        /* Fixar små glipor */
         box-shadow: 2px 0 0 #B3E5FC, -2px 0 0 #B3E5FC; 
     }
     .layer-highlight .q-kubra {
-        background-color: #FFCDD2; /* Ljusröd */
+        background-color: #FFCDD2;
         border-radius: 4px;
         box-shadow: 2px 0 0 #FFCDD2, -2px 0 0 #FFCDD2;
     }
-    
-    /* Hifz i highlight-lagret ska vara osynligt */
-    .layer-highlight .h-start {
-        background-color: transparent;
-    }
+    .layer-highlight .h-start { background-color: transparent; }
 
-    /* --- LAGER 2: TEXT (Toppen) --- */
+    /* LAGER 2: TEXT (Toppen) */
     .layer-text {
         color: #000;
         z-index: 2;
-        pointer-events: none; /* Klick går igenom */
+        pointer-events: none;
         background: transparent;
     }
-    /* I textlagret ska bakgrunden vara genomskinlig */
-    .layer-text .q-sughra, .layer-text .q-kubra, .layer-text .h-start {
-        background-color: transparent;
-        box-shadow: none;
-    }
-    /* Hifz-färgning av texten */
-    .layer-text .h-start {
-        color: #D35400; 
-    }
+    .layer-text .q-sughra, .layer-text .q-kubra { background-color: transparent; }
+    .layer-text .h-start { color: #D35400; }
 
     .link-hint { color: #C0C0C0; font-size: 0.60em; opacity: 0.8; font-weight: normal; }
     .top-curtain { position: fixed; top: 0; left: 0; width: 100%; height: 4vh; background: white; z-index: 100; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 5. SWIPE LOGIC ---
+# --- 5. SWIPE ---
 add_swipe_js = """
 <script>
     const doc = window.parent.document;
@@ -233,11 +219,8 @@ if selected_data:
     font_size, line_height = calculate_text_settings(raw_text)
     
     processed_text = raw_text
-    
-    # 1. Applicera Markup (Klasser)
     if st.session_state.qalqalah_mode:
         processed_text = apply_qalqalah_markup(processed_text)
-        
     if st.session_state.hifz_colors and not st.session_state.qalqalah_mode:
         processed_text = apply_hifz_markup(processed_text)
     
@@ -252,29 +235,16 @@ if selected_data:
             n_text = selected_data[st.session_state.card_index + 1]['text_uthmani']
             next_span = f' <span class="link-hint">{n_text.split(" ")[0]}</span>'
 
+    # SAMMANFOGA ALLT PÅ EN ENDA RAD (Inga \n)
     full_html_content = f"{prev_span}{processed_text}{next_span}"
+    
     container_style = f"font-size: {font_size}; line-height: {line_height};"
     
-    # LAGER 1: Highlight (Botten) - Nästan osynlig text, synlig bakgrund
-    layer_highlight = f"""
-    <div class="layer layer-highlight">
-        {full_html_content}
-    </div>
-    """
+    # VIKTIGT: Här tar vi bort alla radbrytningar i f-strängen för att undvika spök-element
+    layer_highlight = f'<div class="layer layer-highlight">{full_html_content}</div>'
+    layer_text = f'<div class="layer layer-text">{full_html_content}</div>'
 
-    # LAGER 2: Text (Toppen) - Svart text, osynlig bakgrund
-    layer_text = f"""
-    <div class="layer layer-text">
-        {full_html_content}
-    </div>
-    """
-    
-    final_html = f"""
-    <div class="arabic-container" style="{container_style}">
-        {layer_highlight}
-        {layer_text}
-    </div>
-    """
+    final_html = f'<div class="arabic-container" style="{container_style}">{layer_highlight}{layer_text}</div>'
 
     # --- UI RENDER ---
     st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
@@ -292,6 +262,7 @@ if selected_data:
             st.session_state.card_index -= 1
             st.rerun()
     with c_c:
+        # Centrerings-container utanför HTML-blocket
         st.markdown(f"""
         <div style="position: fixed; top: 5vh; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
             <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
