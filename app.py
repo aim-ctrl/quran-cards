@@ -86,7 +86,7 @@ def apply_qalqalah_coloring(text):
     
     # Färgdefinitioner
     color_sughra = "#1E90FF" # DodgerBlue (Tydlig blå)
-    color_kubra = "#DC143C"  # Crimson (Tydlig röd)
+    color_kubra = "#1E90FF"  # Crimson (Tydlig röd)
 
     # 1. QALQALA SUGHRA (Liten)
     # Regex: Hitta en Qalqalah-bokstav följt av en Sukoon.
@@ -100,7 +100,7 @@ def apply_qalqalah_coloring(text):
     # eftersom man stannar på den (gör sukoon) vid versslut.
     # $ betyder slutet på strängen.
     regex_kubra = f"([{qalqalah_letters}])([\u064B-\u065F]*)$"
-    text = re.sub(regex_kubra, f'<span style="color: {color_kubra}; font-weight: bold;">\\1\\2</span>', text)
+    text = re.sub(regex_kubra, f'<span style="color: {color_kubra}; font-weight: bold;">\\1</span>', text)
 
     return text
 
