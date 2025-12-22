@@ -102,4 +102,181 @@ st.markdown("""
     
     .stApp { background-color: #ffffff; }
     .block-container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
-    header, footer, [data-testid="stSidebar
+    header, footer, [data-testid="stSidebar"] { display: none !important; }
+    div[data-testid="stVerticalBlock"] { gap: 0rem !important; }
+
+    .stButton > button {
+        min-height: 0px !important; height: auto !important; padding: 0px !important;
+        line-height: 1.0 !important; border: none !important; background: transparent !important;
+        color: #2E8B57 !important; font-weight: 900 !important; position: relative !important; z-index: 9999 !important; 
+    }
+    div[data-testid="column"]:nth-of-type(1) .stButton > button, 
+    div[data-testid="column"]:nth-of-type(3) .stButton > button {
+        opacity: 0 !important; height: 80vh !important; width: 0% !important; pointer-events: none !important; z-index: 10 !important;
+    }
+
+    .arabic-container {
+        font-family: 'Scheherazade New', serif;
+        direction: rtl;
+        text-align: center;
+        width: 100%;
+        position: relative; 
+    }
+    
+    .layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        direction: rtl;
+        text-align: center;
+    }
+    
+    .link-hint { color: #C0C0C0; font-size: 0.60em; opacity: 0.8; font-weight: normal; }
+    .top-curtain { position: fixed; top: 0; left: 0; width: 100%; height: 4vh; background: white; z-index: 100; }
+</style>
+""", unsafe_allow_html=True)
+
+# --- 4. SWIPE LOGIC ---
+add_swipe_js = """
+<script>
+    const doc = window.parent.document;
+    let touchstartX = 0; let touchendX = 0;
+    function handleSwipe() {
+        if (doc.querySelector('div[data-testid="stDialog"]')) return;
+        const diff = touchendX - touchstartX;
+        if (Math.abs(diff) > 60) {
+            if (diff > 0) { const b = Array.from(doc.querySelectorAll('button')).find(e => e.innerText === '❮'); if(b) b.click(); } 
+            else { const b = Array.from(doc.querySelectorAll('button')).find(e => e.innerText === '❯'); if(b) b.click(); }
+        }
+    }
+    doc.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; }, false);
+    doc.addEventListener('touchend', e => { touchendX = e.changedTouches[0].screenX; handleSwipe(); }, false);
+</script>
+"""
+components.html(add_swipe_js, height=0, width=0)
+
+# --- 5. DIALOG ---
+@st.dialog("Settings")
+def open_settings():
+    new_chapter = st.slider("Chapter", 1, 114, st.session_state.chapter)
+    _, _, total_verses = get_chapter_info(new_chapter)
+
+    default_range = (1, total_verses) if new_chapter != st.session_state.chapter else (st.session_state.start_v, min(st.session_state.end_v, total_verses))
+    verse_range = st.slider("Verses", 1, total_verses, default_range, key=f"v_slider_{new_chapter}")
+    
+    c1, c2 = st.columns(2)
+    with c1: hifz_val = st.toggle("Hifz Colors", value=st.session_state.hifz_colors)
+    with c2: qalqala_val = st.toggle("Tajweed: Qalqalah (Highlight)", value=st.session_state.qalqalah_mode)
+    show_links = st.toggle("Connection Hints", value=st.session_state.show_links)
+
+    if st.button("Load", type="primary", use_container_width=True):
+        st.session_state.chapter = new_chapter
+        st.session_state.start_v = verse_range[0]
+        st.session_state.end_v = verse_range[1]
+        st.session_state.card_index = 0
+        st.session_state.hifz_colors = hifz_val
+        st.session_state.qalqalah_mode = qalqala_val
+        st.session_state.show_links = show_links
+        st.rerun()
+
+# --- 6. RENDER ---
+verses_data = fetch_verses_data(st.session_state.chapter)
+surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
+selected_data = verses_data[st.session_state.start_v - 1 : st.session_state.end_v]
+
+if selected_data:
+    if st.session_state.card_index >= len(selected_data): st.session_state.card_index = 0
+    current_verse = selected_data[st.session_state.card_index]
+    raw_text = current_verse['text_uthmani']
+    
+    font_size, line_height = calculate_text_settings(raw_text)
+    
+    # --- LOGIK FÖR LAGER ---
+    
+    # 1. Background Layer (Highlighting)
+    # Här är texten transparent, men vi sätter bakgrundsfärg på specifika spans.
+    bg_html_content = ""
+    use_overlay = False
+    
+    if st.session_state.qalqalah_mode:
+        use_overlay = True
+        # Vi använder rå text och lägger till bakgrundsfärger
+        # Textfärgen sätts till transparent i HTML-containern nedan
+        bg_html_content = get_qalqalah_background_html(raw_text)
+
+    # 2. Foreground Layer (Texten)
+    # Detta är den riktiga texten som syns.
+    fg_html_content = raw_text
+    if st.session_state.hifz_colors and not st.session_state.qalqalah_mode:
+        fg_html_content = get_hifz_html(raw_text)
+
+    # Länkar (Robt)
+    prev_span = ""
+    next_span = ""
+    if st.session_state.show_links:
+        if st.session_state.card_index > 0:
+            p_text = selected_data[st.session_state.card_index - 1]['text_uthmani']
+            prev_span = f'<span class="link-hint">{p_text.split(" ")[-1]}</span> '
+        if st.session_state.card_index < len(selected_data) - 1:
+            n_text = selected_data[st.session_state.card_index + 1]['text_uthmani']
+            next_span = f' <span class="link-hint">{n_text.split(" ")[0]}</span>'
+
+    # --- HTML SAMMANSÄTTNING ---
+    
+    container_style = f"font-size: {font_size}; line-height: {line_height};"
+    
+    # Layer 1: Background (Highlights)
+    # Z-index 1. Color transparent.
+    layer_bg = ""
+    if use_overlay:
+        layer_bg = f"""
+        <div class="layer" style="color: transparent; z-index: 1;">
+             <span style="visibility: hidden;">{prev_span}</span>{bg_html_content}<span style="visibility: hidden;">{next_span}</span>
+        </div>
+        """
+        
+    # Layer 2: Foreground (Black Text)
+    # Z-index 2. 
+    layer_fg = f"""
+    <div class="layer" style="color: #000; z-index: 2;">
+        {prev_span}{fg_html_content}{next_span}
+    </div>
+    """
+
+    final_html = f"""
+    <div class="arabic-container" style="{container_style}">
+        {layer_bg}
+        {layer_fg}
+    </div>
+    """
+
+    # --- UI RENDER ---
+    st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
+    pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
+    st.markdown(f'<div style="position:fixed;top:0;left:0;width:100%;height:4px;background:#f0f0f0;z-index:200;"><div style="width:{pct}%;height:100%;background:#2E8B57;"></div></div>', unsafe_allow_html=True)
+
+    hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
+    with hc2: 
+        if st.button(f"Juz {current_verse['juz_number']} | Ch {st.session_state.chapter} | {surah_en} | Verse {current_verse['verse_key'].split(':')[1]}", use_container_width=True):
+            open_settings()
+
+    c_l, c_c, c_r = st.columns([1, 800, 1])
+    with c_l:
+        if st.button("❮", key="p") and st.session_state.card_index > 0:
+            st.session_state.card_index -= 1
+            st.rerun()
+    with c_c:
+        st.markdown(f"""
+        <div style="position: fixed; top: 5vh; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
+            <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
+                {final_html}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    with c_r:
+        if st.button("❯", key="n") and st.session_state.card_index < len(selected_data) - 1:
+            st.session_state.card_index += 1
+            st.rerun()
+else:
+    if st.button("Öppna inställningar", use_container_width=True): open_settings()
