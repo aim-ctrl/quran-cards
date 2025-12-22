@@ -95,16 +95,7 @@ def apply_tajweed_markup(text):
     # Regex logik:
     # (Bokstav + Saker + Våg) ... Titta framåt ... (Bokstav + Saker + Shadda)
     
-    regex_lazim = (
-        f"({LETTERS}{ANY_MARK}{MADD_WAVE})"  # Grupp 1: Bokstav med våg
-        f"(?="                               # Lookahead (måste följas av...)
-        f"\\s*"                              # ...eventuella mellanslag
-        f"{LETTERS}"                         # ...nästa bokstav
-        f"{ANY_MARK}"                        # ...eventuella vokaler på den
-        f"{SHADDA}"                          # ...en SHADDA!
-        f")"
-    )
-    text = re.sub(regex_lazim, r'<span class="t-madd-maroon">\1</span>', text)
+
 
     # ---------------------------------------------------------
     # 2. MADD (4-5 Harakat - Rosa)
@@ -115,6 +106,17 @@ def apply_tajweed_markup(text):
     
     regex_madd_gen = f"({LETTERS}{ANY_MARK}{MADD_WAVE})"
     text = re.sub(regex_madd_gen, r'<span class="t-madd-pink">\1</span>', text)
+
+    regex_lazim = (
+        f"({LETTERS}{ANY_MARK}{MADD_WAVE})"  # Grupp 1: Bokstav med våg
+        f"(?="                               # Lookahead (måste följas av...)
+        f"\\s*"                              # ...eventuella mellanslag
+        f"{LETTERS}"                         # ...nästa bokstav
+        f"{ANY_MARK}"                        # ...eventuella vokaler på den
+        f"{SHADDA}"                          # ...en SHADDA!
+        f")"
+    )
+    text = re.sub(regex_lazim, r'<span class="t-madd-maroon">\1</span>', text)
 
     # ---------------------------------------------------------
     # 3. GHUNNA (2 Harakat - Grön)
