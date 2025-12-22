@@ -61,13 +61,14 @@ def calculate_text_settings(text):
 def apply_tajweed_markup(text):
     """
     Avancerad identifiering av Tajweed-regler för Hafs.
-    Hanterar komplexa Unicode-sekvenser och Ikhfa (Naket Noon).
+    Korrigerad för att fånga Ikhfa (Naket Noon) korrekt.
     """
     
-    # --- GRUNDSTENAR (REGEX BLOCKS) ---
+    # --- 1. DEFINIERA TECKEN ---
     LETTERS = r"[\u0621-\u064A]" 
-    # Alla diakritiska tecken (Fatha, Kasra, Damma, Tanween, Shadda, Sukoon etc)
-    # \u06E1 = "Head of Khah" (Izhar Sukoon)
+    
+    # Alla diakritiska tecken (Vokaler, Tanween, Shadda, Sukoon, etc)
+    # Vi inkluderar även "Head of Khah" (\u06E1) som används för Izhar.
     ANY_MARK = r"[\u064B-\u065F\u0670\u06D6-\u06ED]*"
     
     SHADDA = r"\u0651"
@@ -75,64 +76,50 @@ def apply_tajweed_markup(text):
     SUKOON = r"[\u0652\u06E1]" 
     
     QALQALA_CHARS = r"[\u0642\u0637\u0628\u062c\u062f]" 
-    GHUNNA_CHARS = r"[\u0646\u0645]" # Nun och Mim
+    GHUNNA_CHARS = r"[\u0646\u0645]" 
 
-    # Yanmu-Ral (Idgham-bokstäver): Ya, Nun, Mim, Waw, Ra, Lam
-    # Unicode: \u064A (Ya), \u0646 (Nun), \u0645 (Mim), \u0648 (Waw), \u0631 (Ra), \u0644 (Lam)
-    YANMU_RAL = r"[\u064A\u0646\u0645\u0648\u0631\u0644]"
+    # Idgham-bokstäver (Yanmu-Ral) - UTAN klamrar här
+    YANMU_RAL_STR = "\u064A\u0646\u0645\u0648\u0631\u0644"
 
-    # ---------------------------------------------------------
-    # 1. MADD LAZIM (6 Harakat - Maroon)
-    # ---------------------------------------------------------
-    # Måste köras FÖRE vanlig Madd.
+    # --- 2. APPLICERA REGLER (ORDNINGEN ÄR VIKTIG) ---
+
+    # A. MADD LAZIM (6 Harakat - Maroon)
     regex_lazim = (
-        f"({LETTERS}{ANY_MARK}{MADD_WAVE})"  # Grupp 1: Bokstav med våg
-        f"(?="                               # Lookahead
-        f"\\s*"                              # Mellanslag
-        f"{LETTERS}"                         # Nästa bokstav
-        f"{ANY_MARK}"                        # Vokaler
-        f"{SHADDA}"                          # Måste ha Shadda
-        f")"
+        f"({LETTERS}{ANY_MARK}{MADD_WAVE})"
+        f"(?=\\s*{LETTERS}{ANY_MARK}{SHADDA})" 
     )
     text = re.sub(regex_lazim, r'<span class="t-madd-maroon">\1</span>', text)
 
-    # ---------------------------------------------------------
-    # 2. MADD (4-5 Harakat - Rosa)
-    # ---------------------------------------------------------
-    # Tar hand om alla vågor (~) som Lazim-regeln ovan missade.
+    # B. MADD (4-5 Harakat - Rosa)
+    # Tar allt som Lazim missade
     regex_madd_gen = f"({LETTERS}{ANY_MARK}{MADD_WAVE})"
     text = re.sub(regex_madd_gen, r'<span class="t-madd-pink">\1</span>', text)
 
-    # ---------------------------------------------------------
-    # 3. GHUNNA - MIM/NUN SHADDA (2 Harakat - Grön)
-    # ---------------------------------------------------------
+    # C. GHUNNA - MIM/NUN MED SHADDA (Grön)
     regex_ghunna_shadda = f"({GHUNNA_CHARS}{ANY_MARK}{SHADDA})"
     text = re.sub(regex_ghunna_shadda, r'<span class="t-ghunna">\1</span>', text)
 
-    # ---------------------------------------------------------
-    # 4. NY REGEL: NAKET NOON (IKHFA/GHUNNA)
-    # ---------------------------------------------------------
-    # Regel: Noon (\u0646) som INTE har några märken, och INTE följs av Yanmu-Ral.
+    # D. IKHFA - NAKET NOON (Grön) - KORRIGERAD
+    # Vi letar efter Noon (\u0646) som:
+    # 1. INTE följs av några diakritiska tecken (vokaler/sukoon).
+    # 2. Följs av en bokstav som INTE är Yanmu-Ral.
     regex_naked_noon = (
-        f"(\u0646)"                      # 1. Hitta Noon
-        f"(?![\\u064B-\\u065F\\u06E1])"  # 2. Lookahead Neg: Får INTE ha vokal/sukoon direkt efter (Naket)
-        f"(?="                           # 3. Lookahead Pos: Vad kommer sen?
-        f"\\s*"                          #    Tillåt mellanslag
-        f"[^{YANMU_RAL}]"                #    Får INTE vara en Yanmu-Ral bokstav
+        f"(\u0646)"                      # Gruppen vi vill färga (Noon)
+        f"(?![\\u064B-\\u065F\\u06E1])"  # Neg Lookahead: Får INTE ha vokal/sukoon på sig
+        f"(?="                           # Pos Lookahead: Måste följas av...
+        f"\\s*"                          # ...noll eller flera mellanslag...
+        f"[^{YANMU_RAL_STR}]"            # ...och sen ett tecken som INTE är Yanmu-Ral
         f")"
     )
     text = re.sub(regex_naked_noon, r'<span class="t-ghunna">\1</span>', text)
 
-    # ---------------------------------------------------------
-    # 5. QALQALAH SUGHRA (Liten - Blå - Mitten av ord)
-    # ---------------------------------------------------------
+    # E. QALQALAH SUGHRA (Blå - Mitt i ord)
     regex_sughra = f"({QALQALA_CHARS}{ANY_MARK}{SUKOON})"
     text = re.sub(regex_sughra, r'<span class="t-q-sughra">\1</span>', text)
 
-    # ---------------------------------------------------------
-    # 6. QALQALAH KUBRA (Stor - Röd - Slut på vers)
-    # ---------------------------------------------------------
-    regex_kubra = f"({QALQALA_CHARS}{ANY_MARK})$"
+    # F. QALQALAH KUBRA (Blå - Slutet av vers)
+    # \s* hanterar osynliga mellanslag på slutet
+    regex_kubra = f"({QALQALA_CHARS}{ANY_MARK})\s*$"
     text = re.sub(regex_kubra, r'<span class="t-q-kubra">\1</span>', text)
     
     return text
