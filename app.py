@@ -12,12 +12,12 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-if 'chapter' not in st.session_state: st.session_state.chapter = 1
+if 'chapter' not in st.session_state: st.session_state.chapter = 112 # Default till Surah Al-Ikhlas (kort och bra test)
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
-if 'end_v' not in st.session_state: st.session_state.end_v = 7 
+if 'end_v' not in st.session_state: st.session_state.end_v = 4
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
 if 'hifz_colors' not in st.session_state: st.session_state.hifz_colors = False
-if 'qalqalah_mode' not in st.session_state: st.session_state.qalqalah_mode = False 
+if 'qalqalah_mode' not in st.session_state: st.session_state.qalqalah_mode = True # Default PÅ för att testa
 if 'show_links' not in st.session_state: st.session_state.show_links = False
 
 # --- 2. LOGIC & HELPER FUNCTIONS ---
@@ -45,14 +45,14 @@ def calculate_text_settings(text):
     
     if clean_len <= short_threshold:
         final_size = max_size
-        line_height = "1.9"
+        line_height = "2.0" # Lite högre radavstånd för att ge plats åt highlights
     elif clean_len >= long_threshold:
         final_size = min_size
-        line_height = "1.65"
+        line_height = "1.7"
     else:
         progr = (clean_len - short_threshold) / (long_threshold - short_threshold)
         final_size = max_size - (progr * (max_size - min_size))
-        line_height = f"{1.8 - (progr * 0.3):.2f}"
+        line_height = f"{1.9 - (progr * 0.3):.2f}"
 
     return f"{final_size:.2f}vw", line_height
 
@@ -60,8 +60,9 @@ def calculate_text_settings(text):
 
 def apply_qalqalah_markup(text):
     """
-    Lägger till CSS-klasser i texten.
-    Vi ändrar ingenting visuellt här, bara strukturen.
+    Lägger till CSS-klasser. Notera att vi använder ZWJ (&zwj;) i logiken
+    om det skulle behövas, men med highlight-metoden är det viktigaste
+    att HTML-strukturen är identisk i båda lagren.
     """
     qalqalah_letters = "\u0642\u0637\u0628\u062c\u062f"
     sukoon_marks = "\u0652\u06E1" 
@@ -87,7 +88,6 @@ def apply_hifz_markup(text):
     return " ".join(colored_words)
 
 # --- 4. CSS STYLING ---
-# NY STRATEGI: Lager 1 = Svart Text. Lager 2 = Färg (Overlay).
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap');
@@ -107,14 +107,16 @@ st.markdown("""
         opacity: 0 !important; height: 80vh !important; width: 0% !important; pointer-events: none !important; z-index: 10 !important;
     }
 
+    /* Containern */
     .arabic-container {
         font-family: 'Scheherazade New', serif;
         direction: rtl;
         text-align: center;
         width: 100%;
         position: relative;
-        /* VIKTIGT: Tvingar fram exakt text-rendering för att matcha lager */
+        /* VIKTIGT: Tvingar exakt rendering */
         text-rendering: geometricPrecision; 
+        -webkit-font-smoothing: antialiased;
     }
     
     .layer {
@@ -124,48 +126,50 @@ st.markdown("""
         width: 100%;
         direction: rtl;
         text-align: center;
-        white-space: pre-wrap; /* Säkerställer att radbrytningar sker identiskt */
+        white-space: pre-wrap; /* Måste vara samma för båda */
     }
 
-    /* --- LAGER 1: TEXT-BASEN (Botten) --- */
-    /* Detta lager visar den skarpa svarta texten */
-    .layer-text {
-        color: #000;
-        z-index: 1;
-    }
-    /* I textlagret ska markeringarna vara osynliga (ingen bakgrund), bara texten syns */
-    .layer-text .q-sughra, .layer-text .q-kubra, .layer-text .h-start {
-        background-color: transparent;
-    }
-    /* Om Hifz är på vill vi dock att textfärgen ska ändras i baslagret */
-    .layer-text .h-start {
-        color: #D35400; 
-    }
-
-    /* --- LAGER 2: FÄRG-HIGHLIGHT (Toppen) --- */
-    /* Detta lager ritar BARA färgerna ovanpå texten */
+    /* --- LAGER 1: HIGHLIGHT (Botten) --- */
     .layer-highlight {
-        color: transparent; /* Texten själv är osynlig */
-        z-index: 2;
-        pointer-events: none; /* Klick går igenom till texten under */
-        mix-blend-mode: multiply; /* Gör att färgen "målas" på texten snyggt */
+        z-index: 1;
+        /* TRICKET: Inte transparent, utan nästan osynlig svart. 
+           Detta tvingar webbläsaren att beräkna avståndet exakt som svart text. */
+        color: rgba(0, 0, 0, 0.01); 
+        user-select: none; /* Så man inte råkar markera skuggtexten */
     }
     
-    /* Här sätter vi färgerna */
     .layer-highlight .q-sughra {
         background-color: #B3E5FC; /* Ljusblå */
         border-radius: 4px;
-        box-shadow: 0 0 2px #B3E5FC; /* Lite mjukare kant */
+        /* Fixar små glipor */
+        box-shadow: 2px 0 0 #B3E5FC, -2px 0 0 #B3E5FC; 
     }
     .layer-highlight .q-kubra {
         background-color: #FFCDD2; /* Ljusröd */
         border-radius: 4px;
-        box-shadow: 0 0 2px #FFCDD2;
+        box-shadow: 2px 0 0 #FFCDD2, -2px 0 0 #FFCDD2;
     }
     
-    /* Hifz i highlight-lagret ska vara helt osynligt (färgen sköts i textlagret) */
+    /* Hifz i highlight-lagret ska vara osynligt */
     .layer-highlight .h-start {
         background-color: transparent;
+    }
+
+    /* --- LAGER 2: TEXT (Toppen) --- */
+    .layer-text {
+        color: #000;
+        z-index: 2;
+        pointer-events: none; /* Klick går igenom */
+        background: transparent;
+    }
+    /* I textlagret ska bakgrunden vara genomskinlig */
+    .layer-text .q-sughra, .layer-text .q-kubra, .layer-text .h-start {
+        background-color: transparent;
+        box-shadow: none;
+    }
+    /* Hifz-färgning av texten */
+    .layer-text .h-start {
+        color: #D35400; 
     }
 
     .link-hint { color: #C0C0C0; font-size: 0.60em; opacity: 0.8; font-weight: normal; }
@@ -251,25 +255,24 @@ if selected_data:
     full_html_content = f"{prev_span}{processed_text}{next_span}"
     container_style = f"font-size: {font_size}; line-height: {line_height};"
     
-    # LAGER 1: Texten (Botten) - Här syns den svarta texten
-    layer_text = f"""
-    <div class="layer layer-text">
-        {full_html_content}
-    </div>
-    """
-    
-    # LAGER 2: Highlight (Toppen) - Här syns färgerna
-    # Texten är transparent, men background-color på span syns
+    # LAGER 1: Highlight (Botten) - Nästan osynlig text, synlig bakgrund
     layer_highlight = f"""
     <div class="layer layer-highlight">
         {full_html_content}
     </div>
     """
 
+    # LAGER 2: Text (Toppen) - Svart text, osynlig bakgrund
+    layer_text = f"""
+    <div class="layer layer-text">
+        {full_html_content}
+    </div>
+    """
+    
     final_html = f"""
     <div class="arabic-container" style="{container_style}">
-        {layer_text}
         {layer_highlight}
+        {layer_text}
     </div>
     """
 
