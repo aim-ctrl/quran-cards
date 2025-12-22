@@ -59,7 +59,6 @@ def calculate_text_settings(text):
 # --- FÄRGNINGSFUNKTIONER ---
 
 def get_hifz_html(text):
-    # Enkel färgning, ingen overlay behövs oftast här, men vi returnerar HTML
     words = text.split(" ")
     colored_words = []
     highlight_color = "#D35400" 
@@ -70,35 +69,29 @@ def get_hifz_html(text):
             colored_words.append(word)
     return " ".join(colored_words)
 
-def get_qalqalah_overlay_html(text):
+def get_qalqalah_background_html(text):
     """
-    Skapar HTML för det ÖVRE lagret (Förgrunden).
-    Vi använder Zero Width Joiner (\u200D) för att tvinga bokstäverna
-    att behålla sin "kopplade" form även inuti span-taggen.
+    Skapar HTML för BAKGRUNDSLAGRET.
+    Texten här är TRANSPARENT.
+    Vi sätter BACKGROUND-COLOR på bokstäverna vi vill markera.
     """
     qalqalah_letters = "\u0642\u0637\u0628\u062c\u062f"
     sukoon_marks = "\u0652\u06E1"
     
-    color_sughra = "#1E90FF" # Blå
-    color_kubra = "#DC143C"  # Röd
+    # Ljusa pastellfärger för bakgrunden så texten syns tydligt ovanpå
+    bg_sughra = "#B3E5FC" # Ljusblå (Light Blue 100)
+    bg_kubra = "#FFCDD2"  # Ljusröd (Red 100)
     
-    # ZWJ (Zero Width Joiner) - "Det osynliga klistret"
-    zwj = "\u200D"
-
-    # 1. Sughra (Mitten av ord)
-    # Bokstaven ska koppla både till höger och vänster.
-    # Vi lägger ZWJ på BÅDA sidor om bokstaven/sukoonen inuti spanen.
-    # Resultat: Bokstaven sträcker ut "armar" åt båda hållen och matchar bakgrunden.
+    # Eftersom texten är transparent spelar "shaping" ingen roll visuellt här,
+    # men vi vill att markeringen ska täcka rätt yta.
+    
+    # 1. Sughra (Mitten) - Markera bokstav + sukoon
     regex_sughra = f"([{qalqalah_letters}])([{sukoon_marks}])"
-    
-    # Notera: {zwj} läggs till före och efter inuti färgen
-    text = re.sub(regex_sughra, f'<span style="color: {color_sughra};">{zwj}\\1\\2{zwj}</span>', text)
+    text = re.sub(regex_sughra, f'<span style="background-color: {bg_sughra}; border-radius: 4px;">\\1\\2</span>', text)
 
-    # 2. Kubra (Slutet av ord/vers)
-    # Bokstaven ska oftast koppla till höger (föregående bokstav), men inte till vänster.
-    # Vi lägger ZWJ BARA före bokstaven.
+    # 2. Kubra (Slutet) - Markera bokstav + ev. vokal
     regex_kubra = f"([{qalqalah_letters}])([\u064B-\u065F]*)$"
-    text = re.sub(regex_kubra, f'<span style="color: {color_kubra};">{zwj}\\1\\2</span>', text)
+    text = re.sub(regex_kubra, f'<span style="background-color: {bg_kubra}; border-radius: 4px;">\\1\\2</span>', text)
     
     return text
 
@@ -109,186 +102,4 @@ st.markdown("""
     
     .stApp { background-color: #ffffff; }
     .block-container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
-    header, footer, [data-testid="stSidebar"] { display: none !important; }
-    div[data-testid="stVerticalBlock"] { gap: 0rem !important; }
-
-    .stButton > button {
-        min-height: 0px !important; height: auto !important; padding: 0px !important;
-        line-height: 1.0 !important; border: none !important; background: transparent !important;
-        color: #2E8B57 !important; font-weight: 900 !important; position: relative !important; z-index: 9999 !important; 
-    }
-    div[data-testid="column"]:nth-of-type(1) .stButton > button, 
-    div[data-testid="column"]:nth-of-type(3) .stButton > button {
-        opacity: 0 !important; height: 80vh !important; width: 0% !important; pointer-events: none !important; z-index: 10 !important;
-    }
-
-    .arabic-container {
-        font-family: 'Scheherazade New', serif;
-        direction: rtl;
-        text-align: center;
-        width: 100%;
-        position: relative; /* VIKTIGT för lagren */
-    }
-    
-    .layer {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        direction: rtl;
-        text-align: center;
-    }
-    
-    .link-hint { color: #C0C0C0; font-size: 0.60em; opacity: 0.8; font-weight: normal; }
-    .top-curtain { position: fixed; top: 0; left: 0; width: 100%; height: 4vh; background: white; z-index: 100; }
-</style>
-""", unsafe_allow_html=True)
-
-# --- 4. SWIPE LOGIC ---
-add_swipe_js = """
-<script>
-    const doc = window.parent.document;
-    let touchstartX = 0; let touchendX = 0;
-    function handleSwipe() {
-        if (doc.querySelector('div[data-testid="stDialog"]')) return;
-        const diff = touchendX - touchstartX;
-        if (Math.abs(diff) > 60) {
-            if (diff > 0) { const b = Array.from(doc.querySelectorAll('button')).find(e => e.innerText === '❮'); if(b) b.click(); } 
-            else { const b = Array.from(doc.querySelectorAll('button')).find(e => e.innerText === '❯'); if(b) b.click(); }
-        }
-    }
-    doc.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; }, false);
-    doc.addEventListener('touchend', e => { touchendX = e.changedTouches[0].screenX; handleSwipe(); }, false);
-</script>
-"""
-components.html(add_swipe_js, height=0, width=0)
-
-# --- 5. DIALOG ---
-@st.dialog("Settings")
-def open_settings():
-    new_chapter = st.slider("Chapter", 1, 114, st.session_state.chapter)
-    _, _, total_verses = get_chapter_info(new_chapter)
-
-    default_range = (1, total_verses) if new_chapter != st.session_state.chapter else (st.session_state.start_v, min(st.session_state.end_v, total_verses))
-    verse_range = st.slider("Verses", 1, total_verses, default_range, key=f"v_slider_{new_chapter}")
-    
-    c1, c2 = st.columns(2)
-    with c1: hifz_val = st.toggle("Hifz Colors", value=st.session_state.hifz_colors)
-    with c2: qalqala_val = st.toggle("Tajweed: Qalqalah", value=st.session_state.qalqalah_mode)
-    show_links = st.toggle("Connection Hints", value=st.session_state.show_links)
-
-    if st.button("Load", type="primary", use_container_width=True):
-        st.session_state.chapter = new_chapter
-        st.session_state.start_v = verse_range[0]
-        st.session_state.end_v = verse_range[1]
-        st.session_state.card_index = 0
-        st.session_state.hifz_colors = hifz_val
-        st.session_state.qalqalah_mode = qalqala_val
-        st.session_state.show_links = show_links
-        st.rerun()
-
-# --- 6. RENDER ---
-verses_data = fetch_verses_data(st.session_state.chapter)
-surah_en, surah_ar, _ = get_chapter_info(st.session_state.chapter)
-selected_data = verses_data[st.session_state.start_v - 1 : st.session_state.end_v]
-
-if selected_data:
-    if st.session_state.card_index >= len(selected_data): st.session_state.card_index = 0
-    current_verse = selected_data[st.session_state.card_index]
-    raw_text = current_verse['text_uthmani']
-    
-    font_size, line_height = calculate_text_settings(raw_text)
-    
-    # --- LOGIK FÖR LAGER ---
-    # Vi behöver två versioner av texten
-    
-    # 1. Background Text (Svart, basen)
-    # Om Hifz är på använder vi färgningen direkt här (Hifz flyttar inte vokaler lika ofta då det är första bokstaven)
-    # Om Qalqalah är på är bakgrunden bara ren svart text.
-    bg_html_content = raw_text
-    if st.session_state.hifz_colors and not st.session_state.qalqalah_mode:
-        bg_html_content = get_hifz_html(raw_text)
-    
-    # 2. Foreground Text (Transparent bas, färgade bokstäver)
-    fg_html_content = ""
-    use_overlay = False
-    
-    if st.session_state.qalqalah_mode:
-        use_overlay = True
-        # Här skapar vi versionen där allt är transparent utom Qalqalah-bokstäverna
-        fg_html_content = get_qalqalah_overlay_html(raw_text)
-
-    # Länkar (Robt)
-    prev_span = ""
-    next_span = ""
-    if st.session_state.show_links:
-        if st.session_state.card_index > 0:
-            p_text = selected_data[st.session_state.card_index - 1]['text_uthmani']
-            prev_span = f'<span class="link-hint">{p_text.split(" ")[-1]}</span> '
-        if st.session_state.card_index < len(selected_data) - 1:
-            n_text = selected_data[st.session_state.card_index + 1]['text_uthmani']
-            next_span = f' <span class="link-hint">{n_text.split(" ")[0]}</span>'
-
-    # --- HTML SAMMANSÄTTNING ---
-    
-    # Container Styles
-    # Vi sätter line-height och font-size på containern så det är identiskt för båda lagren
-    container_style = f"font-size: {font_size}; line-height: {line_height};"
-    
-    # Background Layer (Visible Black Text)
-    # Z-index 1. Color black.
-    layer_bg = f"""
-        <div class="layer" style="color: #000; z-index: 1;">
-            {prev_span}{bg_html_content}{next_span}
-        </div>
-    """
-    
-    # Foreground Layer (Color Overlay)
-    # Z-index 2. Color transparent (viktigt!). 
-    # Pointer-events none så man kan markera texten under.
-    layer_fg = ""
-    if use_overlay:
-        layer_fg = f"""
-        <div class="layer" style="color: transparent; z-index: 2; pointer-events: none;">
-            <span style="visibility: hidden;">{prev_span}</span>{fg_html_content}<span style="visibility: hidden;">{next_span}</span>
-        </div>
-        """
-        # Notera: Vi lägger till prev_span/next_span med visibility:hidden i förgrunden 
-        # för att se till att texten "puttas" exakt lika långt i sidled i båda lagren.
-
-    final_html = f"""
-    <div class="arabic-container" style="{container_style}">
-        {layer_bg}
-        {layer_fg}
-    </div>
-    """
-
-    # --- UI RENDER ---
-    st.markdown('<div class="top-curtain"></div>', unsafe_allow_html=True)
-    pct = ((st.session_state.card_index + 1) / len(selected_data)) * 100
-    st.markdown(f'<div style="position:fixed;top:0;left:0;width:100%;height:4px;background:#f0f0f0;z-index:200;"><div style="width:{pct}%;height:100%;background:#2E8B57;"></div></div>', unsafe_allow_html=True)
-
-    hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
-    with hc2: 
-        if st.button(f"Juz {current_verse['juz_number']} | Ch {st.session_state.chapter} | {surah_en} | Verse {current_verse['verse_key'].split(':')[1]}", use_container_width=True):
-            open_settings()
-
-    c_l, c_c, c_r = st.columns([1, 800, 1])
-    with c_l:
-        if st.button("❮", key="p") and st.session_state.card_index > 0:
-            st.session_state.card_index -= 1
-            st.rerun()
-    with c_c:
-        st.markdown(f"""
-        <div style="position: fixed; top: 5vh; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: center; overflow-y: auto; z-index: 1;">
-            <div style="max-width: 90%; width: 600px; margin: auto; padding-bottom: 5vh;">
-                {final_html}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c_r:
-        if st.button("❯", key="n") and st.session_state.card_index < len(selected_data) - 1:
-            st.session_state.card_index += 1
-            st.rerun()
-else:
-    if st.button("Öppna inställningar", use_container_width=True): open_settings()
+    header, footer, [data-testid="stSidebar
