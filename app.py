@@ -174,7 +174,6 @@ def open_settings():
     
     show_links = st.toggle("Connection Hints", value=st.session_state.show_links)
     
-    # Toggle för Compact Hifz Mode
     is_grid = st.session_state.view_mode == 'grid'
     use_grid = st.toggle("Compact Hifz Mode (First Letter)", value=is_grid)
 
@@ -184,7 +183,6 @@ def open_settings():
         st.session_state.end_v = verse_range[1]
         st.session_state.card_index = 0
         st.session_state.show_links = show_links
-        # Uppdatera view_mode baserat på togglen
         st.session_state.view_mode = 'grid' if use_grid else 'card'
         st.rerun()
 
@@ -203,7 +201,6 @@ if selected_data:
 
     hc1, hc2, hc3 = st.columns([1, 4, 1], vertical_alignment="center")
     
-    # hc1 och hc3 är nu tomma för balansering, titeln centrerad i hc2
     with hc2: 
         title_text = f"{surah_en} ({st.session_state.start_v}-{st.session_state.end_v})"
         if st.button(title_text, use_container_width=True):
@@ -265,12 +262,13 @@ if selected_data:
             for w_idx, word in enumerate(words):
                 extra_class = " verse-start" if w_idx == 0 else ""
                 
-                word_html = f"""
-                <span class="hifz-word{extra_class}" onclick="void(0)">
-                    <span class="short-text">{word['short']}</span>
-                    <span class="full-text">{word['full']}</span>
-                </span>
-                """
+                # VIKTIGT: Ingen indentering/mellanslag i strängen nedan!
+                word_html = (
+                    f'<span class="hifz-word{extra_class}" onclick="void(0)">'
+                    f'<span class="short-text">{word["short"]}</span>'
+                    f'<span class="full-text">{word["full"]}</span>'
+                    f'</span>'
+                )
                 grid_html += word_html
             
             grid_html += f'<span class="verse-sep">۝</span>'
