@@ -164,7 +164,7 @@ st.markdown("""
     }
     .verse-num {
         position: absolute;
-        top: 55%; /* Finjustering för vertikal centrering i arabisk font */
+        top: 50%; /* Finjustering för vertikal centrering i arabisk font */
         left: 50%;
         transform: translate(-50%, -50%);
         font-size: 0.45em; /* Numret måste vara litet för att rymmas */
