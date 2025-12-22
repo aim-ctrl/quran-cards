@@ -100,7 +100,7 @@ def apply_qalqalah_coloring(text):
     # eftersom man stannar på den (gör sukoon) vid versslut.
     # $ betyder slutet på strängen.
     regex_kubra = f"([{qalqalah_letters}])([\u064B-\u065F]*)$"
-    text = re.sub(regex_kubra, f'<span style="color: {color_kubra}; font-weight: bold;">\\1</span>', text)
+    text = re.sub(regex_kubra, f'<span style="color: {color_kubra}; font-weight: bold;">\\1</span>\\2', text)
 
     return text
 
