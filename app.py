@@ -12,12 +12,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-if 'chapter' not in st.session_state: st.session_state.chapter = 112 
+# Vi sätter Surah Al-Fatiha (1) som default, där "Ad-Dallin" (Vers 7) är ett perfekt test för Madd Lazim
+if 'chapter' not in st.session_state: st.session_state.chapter = 1 
 if 'start_v' not in st.session_state: st.session_state.start_v = 1
-if 'end_v' not in st.session_state: st.session_state.end_v = 4
+if 'end_v' not in st.session_state: st.session_state.end_v = 7
 if 'card_index' not in st.session_state: st.session_state.card_index = 0
 if 'hifz_colors' not in st.session_state: st.session_state.hifz_colors = False
-if 'tajweed_mode' not in st.session_state: st.session_state.tajweed_mode = True # Default PÅ
+if 'tajweed_mode' not in st.session_state: st.session_state.tajweed_mode = True 
 if 'show_links' not in st.session_state: st.session_state.show_links = False
 
 # --- 2. LOGIC & HELPER FUNCTIONS ---
@@ -60,70 +61,51 @@ def calculate_text_settings(text):
 
 def apply_tajweed_markup(text):
     """
-    Applicerar klasser för Tajweed-regler (Ghunna, Madd, Qalqalah).
+    Applicerar klasser för Tajweed-regler.
+    Ordning är viktig: Vi tar de mest specifika reglerna (Lazim) först.
     """
-    # Definitioner
-    qalqalah_letters = "\u0642\u0637\u0628\u062c\u062f" # Qaf, Tta, Ba, Jeem, Dal
+    qalqalah_letters = "\u0642\u0637\u0628\u062c\u062f"
     sukoon_marks = "\u0652\u06E1" 
     shadda = "\u0651"
-    madd_mark = "\u0653" # Vågen (~)
     
     # ---------------------------------------------------------
     # 1. GHUNNA (Grön)
     # Regel: Nun eller Mim följt av Shadda.
-    # Regex: Hitta Nun/Mim, ev. vokaler, sen Shadda.
     # ---------------------------------------------------------
     regex_ghunna = f"([nmNM\u0646\u0645][\u064B-\u0650]*{shadda})"
     text = re.sub(regex_ghunna, r'<span class="t-ghunna">\1</span>', text)
 
     # ---------------------------------------------------------
     # 2. MADD LAZIM (Maroon - 6 Harakat)
-    # Regel (Heuristik): En bokstav med Madd-tecken (~) som följs av en Shadda.
-    # Vi använder lookahead (?=...) för att kolla efter shaddan utan att "äta upp" den i regexen,
-    # eller så inkluderar vi shaddan i färgen om vi vill. Här färgar vi bara madd-bokstaven.
+    # Regel: Madd-tecken (~) följt av en bokstav med Shadda.
+    # Exempel: الضَّالِّينَ (Madd på Alif, Shadda på Lam)
     # ---------------------------------------------------------
-    # \1 = Bokstav + ev. vokaler + Madd-tecken
-    # Kollar om det efterföljs av en bokstav med Shadda eller direkt Shadda.
-    # Enklast för Kalimi: Madd-tecken + Shadda i närheten.
+    # Förklaring av Regex:
+    # 1. ([\u0621-\u064A][\u064B-\u065F]*\u0653) -> Fånga bokstav + vokaler + Madd-tecken (~)
+    # 2. (?= ... ) -> Lookahead (Kolla framåt utan att äta upp texten)
+    # 3. \s* -> Tillåt mellanslag (om det sträcker sig över ord)
+    # 4. [\u0621-\u064A] -> Nästa basbokstav
+    # 5. [\u064B-\u065F]* -> Ev. vokaler på den bokstaven
+    # 6. \u0651 -> SHADDA!
     
-    # Här söker vi: Bokstav -> Vokaler -> Madd-tecken -> (Lookahead: Vokaler -> Shadda)
-    regex_lazim = r'([\u0621-\u064A][\u064B-\u065F]*\u0653)(?=[\u064B-\u065F]*\u0651)'
+    regex_lazim = r'([\u0621-\u064A][\u064B-\u065F]*\u0653)(?=\s*[\u0621-\u064A][\u064B-\u065F]*\u0651)'
     text = re.sub(regex_lazim, r'<span class="t-madd-maroon">\1</span>', text)
 
     # ---------------------------------------------------------
-    # 3. MADD (Rosa - 4-5 Harakat / Övriga)
-    # Regel: Alla resterande Madd-tecken (~) som INTE fångades av Lazim-regeln ovan.
+    # 3. MADD NORMAL (Rosa - 4-5 Harakat)
+    # Regel: Alla andra Madd-tecken (~) som inte fångades av regeln ovan.
     # ---------------------------------------------------------
+    # Eftersom vi redan har wrappat Lazim i <span class="t-madd-maroon">...</span>,
+    # så kommer denna regex inte matcha dem (eftersom "<" inte är en arabisk bokstav).
     regex_madd = r'([\u0621-\u064A][\u064B-\u065F]*\u0653)'
-    # Eftersom vi körde Lazim först (och ersatte med span), kommer denna bara ta de som är kvar "orörda".
-    # Men regex är tricky, vi måste se till att inte ersätta inuti redan skapade span-taggar.
-    # Enklast: Vi kör en funktion som ignorerar om det redan finns en klass.
-    # Eller förlitat oss på att Lazim redan är "wrappad".
-    
-    # För säkerhets skull kör vi en negativ lookbehind eller bara hoppas python re inte matchar inuti taggar enkelt.
-    # Ett trick: Lazim-regexen bytte ut texten. Denna regex letar efter "raw" text.
-    # Om Lazim redan har wrappat det i <span...>, så kommer regexen inte matcha "ren text" lika lätt.
-    # Vi testar standardordningen.
-    def madd_replacer(match):
-        # Kolla om vi redan är inuti en tagg (väldigt enkelt check)
-        # Men för nu kör vi bara på.
-        return f'<span class="t-madd-pink">{match.group(1)}</span>'
-        
-    text = re.sub(regex_madd, madd_replacer, text)
-    
-    # Städa upp om vi råkade nästla (Lazim inuti Pink). 
-    # Om Lazim kördes först, så är strängen nu: <span class="t-madd-maroon">...</span>
-    # Regex för Pink kommer INTE matcha <span...> som en arabisk bokstav. Så det är lugnt!
-    
+    text = re.sub(regex_madd, r'<span class="t-madd-pink">\1</span>', text)
+
     # ---------------------------------------------------------
     # 4. QALQALAH (Blå/Röd)
     # ---------------------------------------------------------
-    
-    # Sughra (Liten - Blå)
     regex_sughra = f"([{qalqalah_letters}])([{sukoon_marks}])"
     text = re.sub(regex_sughra, r'<span class="t-q-sughra">\1\2</span>', text)
 
-    # Kubra (Stor - Röd - Slutet av vers)
     regex_kubra = f"([{qalqalah_letters}])([\u064B-\u065F]*)$"
     text = re.sub(regex_kubra, r'<span class="t-q-kubra">\1\2</span>', text)
     
@@ -186,7 +168,7 @@ st.markdown("""
         background: transparent;
         pointer-events: none;
     }
-    /* Alla klasser i textlagret ska vara genomskinliga */
+    /* Alla Tajweed-klasser i textlagret ska vara genomskinliga */
     .layer-text .t-ghunna, .layer-text .t-madd-pink, .layer-text .t-madd-maroon, 
     .layer-text .t-q-sughra, .layer-text .t-q-kubra { background-color: transparent; }
     
@@ -197,7 +179,7 @@ st.markdown("""
         position: absolute;
         top: 0; left: 0; right: 0; bottom: 0;
         z-index: 1;
-        color: rgba(0, 0, 0, 0.01); /* Osynligt bläck */
+        color: rgba(0, 0, 0, 0.01); /* Osynligt bläck för perfekt linjering */
         user-select: none;
     }
     
@@ -205,36 +187,35 @@ st.markdown("""
     
     /* Ghunna (Grön) */
     .layer-highlight .t-ghunna {
-        background-color: #A5D6A7; /* Pastel Green */
+        background-color: #A5D6A7; 
         border-radius: 4px;
         box-shadow: 2px 0 0 #A5D6A7, -2px 0 0 #A5D6A7;
     }
 
     /* Madd Normal (Rosa) */
     .layer-highlight .t-madd-pink {
-        background-color: #F8BBD0; /* Pink 100 */
+        background-color: #F8BBD0; 
         border-radius: 4px;
         box-shadow: 2px 0 0 #F8BBD0, -2px 0 0 #F8BBD0;
     }
 
-    /* Madd Lazim (Maroon - fast lite ljusare för att texten ska synas) */
-    /* Vi använder en djupare rosa/röd för att indikera "Maroon" utan att döda kontrasten */
+    /* Madd Lazim (Maroon/Mörkröd) */
     .layer-highlight .t-madd-maroon {
-        background-color: #EF9A9A; /* Red 200 - tydligt mörkare än pink */
+        background-color: #E57373; /* Tydligare mörkare röd */
         border-radius: 4px;
-        box-shadow: 2px 0 0 #EF9A9A, -2px 0 0 #EF9A9A;
+        box-shadow: 2px 0 0 #E57373, -2px 0 0 #E57373;
     }
 
     /* Qalqalah Sughra (Blå) */
     .layer-highlight .t-q-sughra {
-        background-color: #B3E5FC; /* Light Blue */
+        background-color: #B3E5FC; 
         border-radius: 4px;
         box-shadow: 2px 0 0 #B3E5FC, -2px 0 0 #B3E5FC; 
     }
 
     /* Qalqalah Kubra (Röd) */
     .layer-highlight .t-q-kubra {
-        background-color: #FFCDD2; /* Light Red */
+        background-color: #FFCDD2; 
         border-radius: 4px;
         box-shadow: 2px 0 0 #FFCDD2, -2px 0 0 #FFCDD2;
     }
@@ -303,13 +284,10 @@ if selected_data:
     
     processed_text = raw_text
     
-    # Prioritera Tajweed om det är på
+    # 1. Applicera Markup
     if st.session_state.tajweed_mode:
         processed_text = apply_tajweed_markup(processed_text)
     
-    # Hifz färgar bara första bokstaven i ord, oberoende av Tajweed (men kan krocka visuellt)
-    # Vi kör Hifz om tajweed är AV, eller om vi vill ha båda (men det blir rörigt). 
-    # Just nu: Antingen eller.
     if st.session_state.hifz_colors and not st.session_state.tajweed_mode:
         processed_text = apply_hifz_markup(processed_text)
     
@@ -328,7 +306,11 @@ if selected_data:
     
     container_style = f"font-size: {font_size}; line-height: {line_height};"
     
+    # LAGER-STRUKTUR:
+    # 1. Highlight (Absolute) - Ligger under texten men följer dess positionering
     layer_highlight = f'<div class="layer layer-highlight">{full_html_content}</div>'
+    
+    # 2. Text (Relative) - Styr layouten, visar texten
     layer_text = f'<div class="layer layer-text">{full_html_content}</div>'
 
     final_html = f'<div class="arabic-container" style="{container_style}">{layer_highlight}{layer_text}</div>'
